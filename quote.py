@@ -1,16 +1,16 @@
 import discord
-import json
+import DBService
 from discord.ext import commands
 from configs import credentials
+from cogs.Main import bot_config, blacklist_ids
 
-with open('configs/credentials.json') as json_data:
-	response_json = json.load(json_data)
+async def get_prefix(bot, message):
+	try:
+		return commands.when_mentioned_or(DBService.exec("SELECT Prefix FROM Guilds WHERE Guild = " + str(message.guild.id)).fetchone()[0])(bot, message)
+	except:
+		return commands.when_mentioned_or(bot_config['default_prefix'])(bot, message)
 
-default_prefix = response_json['default_prefix']
-token = response_json['token']
-del response_json
-
-bot = commands.AutoShardedBot(command_prefix = commands.when_mentioned_or(default_prefix), case_insensitive = True, status = discord.Status.idle, activity = discord.Game('starting up...'))
+bot = commands.AutoShardedBot(command_prefix = get_prefix, case_insensitive = True, status = discord.Status.idle, activity = discord.Game('starting up...'), max_messages = bot_config['max_message_cache'])
 bot.remove_command('help')
 
 @bot.event
@@ -19,10 +19,8 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-	if message.author.bot:
-		return
-	else:
+	if not message.author.bot and DBService.exec("SELECT " + str(message.author.id) + " FROM Blacklist").fetchone() == None:
 		await bot.process_commands(message)
 
 
-bot.run(token)
+bot.run(bot_config['token'])
