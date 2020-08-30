@@ -3,3 +3,9 @@
 
 # Quote Bot
 
+
+---
+
+### Self Host
+
+*WIP*
