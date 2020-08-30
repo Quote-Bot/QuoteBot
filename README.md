@@ -4,6 +4,11 @@
 # Quote Bot
 
 
+# Features
+
+## WIP*
+
+
 ---
 
 ### Self Host
