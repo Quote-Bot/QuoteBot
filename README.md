@@ -16,3 +16,9 @@
 Quote is completely open-source and self-hostable!
 
 If you or someone you know want to add your own version of Quote to your/their guild, feel free to check out the self-hosting guides on our [website (https://quote-bot.tk)](https://quote-bot.tk)
+
+[Windows Self-Hosting Guide](https://quote-bot.tk/selfhosting/windows)
+
+[Linux Self-Hosting Guide](https://quote-bot.tk/selfhosting/linux)
+
+[FAQ (Frequently Asked Questions)](https://quote-bot.tk/selfhosting/faq)
