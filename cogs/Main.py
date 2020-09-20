@@ -17,45 +17,103 @@ def get_response(guild, response):
 	try:
 		return responses[lang[0]][response]
 	except:
-		return responses['en-US'][response]
+		return responses[bot_config['default_lang']][response]
 
-def quote_embed(ctx, message):
+def quote_embed(message, guild, channel, user):
 	embed = discord.Embed(description = message.content, color = (None if message.author.color.default() else message.author.color), timestamp = message.created_at)
 	embed.set_author(name = str(message.author), icon_url = message.author.avatar_url)
 	if len(message.attachments) > 0:
-		if message.channel.is_nsfw() and not ctx.channel.is_nsfw():
-			embed.add_field(name = 'Attachment(s)', value = ':underage: **Explicit content belongs in a NSFW channel.**')
+		if message.channel.is_nsfw() and not channel.is_nsfw():
+			embed.add_field(name = 'Attachment(s)', value = ':underage: ' + get_response(guild, 'MAIN_quote_nonsfw'))
 		elif len(message.attachments) == 1 and message.attachments[0].url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.gifv', '.webp', '.bmp')):
 			embed.set_image(url = message.attachments[0].url)
 		else:
 			embed.add_field(name = 'Attachment(s)', value = '\n'.join('[' + attachment.filename + '](' + attachment.url + ')' for attachment in message.attachments))
-	embed.set_footer(text = get_response(ctx.guild, 'MAIN_quote_embedfooter').format(str(ctx.author), message.channel.name))
+	embed.set_footer(text = get_response(guild, 'MAIN_quote_embedfooter').format(str(user), message.channel.name))
 	return embed
 
 class Main(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 
-	@commands.command(aliases = ['q'])
-	async def quote(self, ctx, msg_id: int):
-		message = None
-		async with ctx.typing():
+	@commands.Cog.listener()
+	async def on_ready(self):
+		for guild in self.bot.guilds:
 			try:
-				message = await ctx.channel.fetch_message(msg_id)
-			except (discord.NotFound, discord.Forbidden):
-				for channel in ctx.guild.text_channels:
-					if ctx.guild.me.permissions_in(channel).read_messages and ctx.guild.me.permissions_in(channel).read_message_history and channel != ctx.channel:
-						try:
-							message = await channel.fetch_message(msg_id)
-						except discord.NotFound:
-							continue
-						else:
-							break
+				DBService.exec("INSERT INTO Guilds (Guild, Language) VALUES (" + str(guild.id) + ", '" + bot_config['default_lang'] + "')")
+			except Exception:
+				continue
 
-		if message:
-			await ctx.send(embed = quote_embed(ctx, message))
+	@commands.Cog.listener()
+	async def on_guild_join(self, guild):
+		try:
+			DBService.exec("INSERT INTO Guilds (Guild, Language) VALUES (" + str(guild.id) + ", '" + bot_config['default_lang'] + "')")
+		except Exception:
+			pass
+
+	@commands.Cog.listener()
+	async def on_raw_reaction_add(self, payload):
+		if str(payload.emoji) == '💬' and DBService.exec("SELECT OnReaction FROM Guilds WHERE Guild = " + str(payload.guild_id)).fetchone()[0] == 1:
+			guild = self.bot.get_guild(payload.guild_id)
+			channel = guild.get_channel(payload.channel_id)
+			perms = guild.me.permissions_in(channel)
+			if payload.member.permissions_in(channel).send_messages and perms.read_message_history and perms.send_messages and perms.embed_links:
+				message = discord.utils.get(self.bot.cached_messages, channel = channel, id = payload.message_id)
+				if not message:
+					message = await channel.fetch_message(payload.message_id)
+				await channel.send(embed = quote_embed(message, guild, channel, payload.member))
+
+	@commands.command(aliases = ['q'])
+	async def quote(self, ctx, msg):
+		perms = ctx.me.guild.permissions_in(ctx.channel)
+		if not perms.send_messages:
+			return
+		elif not perms.embed_links:
+			await ctx.send(content = bot_config['response_strings']['error'] + ' ' + get_response(ctx.guild, 'META_perms_noembed'))
 		else:
-			await ctx.send(content = bot_config['response_strings']['error'] + ' **' + get_response(ctx.guild, 'MAIN_quote_nomessage') + '**')
+			async with ctx.typing():
+				try:
+					msg_id = int(msg)
+				except ValueError:
+					try:
+						list_ids = [int(i) for i in msg.strip('https://canary.discord.com/channels/').split('/')]
+					except ValueError:
+						return await ctx.send(content = bot_config['response_strings']['error'] + ' ' + get_response(ctx.guild, 'MAIN_quote_inputerror'))
+					else:
+						guild = self.bot.get_guild(list_ids[0])
+						channel = self.bot.get_channel(list_ids[1])
+						if channel:
+							perms = guild.me.permissions_in(channel)
+							if perms.read_messages and perms.read_message_history:
+								message = discord.utils.get(self.bot.cached_messages, channel__id = list_ids[1], id = list_ids[2])
+								if not message:
+									try:
+										message = await channel.fetch_message(list_ids[2])
+									except discord.NotFound:
+										pass
+							else:
+								return await ctx.send(content = bot_config['response_strings']['error'] + ' ' + get_response(ctx.guild, 'MAIN_quote_noperms'))
+				else:
+					message = discord.utils.get(self.bot.cached_messages, channel = ctx.channel, id = msg_id)
+					if not message:
+						message = discord.utils.get(self.bot.cached_messages, guild = ctx.guild, id = msg_id)
+						if not message:
+							try:
+								message = await ctx.channel.fetch_message(msg_id)
+							except (discord.NotFound, discord.Forbidden):
+								for channel in ctx.guild.text_channels:
+									perms = ctx.guild.me.permissions_in(channel)
+									if perms.read_messages and perms.read_message_history and channel != ctx.channel:
+										try:
+											message = await channel.fetch_message(msg_id)
+										except discord.NotFound:
+											continue
+										else:
+											break
+				if message:
+					await ctx.send(embed = quote_embed(message))
+				else:
+					await ctx.send(content = bot_config['response_strings']['error'] + ' ' + get_response(ctx.guild, 'MAIN_quote_nomessage'))
 
 
 def setup(bot):
