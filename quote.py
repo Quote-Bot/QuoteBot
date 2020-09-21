@@ -1,7 +1,7 @@
 import discord
 import DBService
 from discord.ext import commands
-from cogs.Main import bot_config, blacklist_ids
+from cogs.Main import bot_config
 
 async def get_prefix(bot, message):
 	try:
@@ -9,10 +9,10 @@ async def get_prefix(bot, message):
 	except:
 		return commands.when_mentioned_or(bot_config['default_prefix'])(bot, message)
 
-bot = commands.AutoShardedBot(command_prefix = get_prefix, case_insensitive = True, status = discord.Status.idle, activity = discord.Game('starting up...'), max_messages = bot_config['max_message_cache'])
+bot = commands.AutoShardedBot(command_prefix = get_prefix, case_insensitive = True, owner_ids = bot_config['owner_ids'], status = discord.Status.idle, activity = discord.Game('starting up...'), max_messages = bot_config['max_message_cache'])
 bot.remove_command('help')
 
-extensions = ['cogs.Main']
+extensions = ['cogs.Main', 'cogs.OwnerOnly']
 for i in extensions:
 	bot.load_extension(i)
 

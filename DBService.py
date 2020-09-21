@@ -22,13 +22,20 @@ def exec(sql):
 			global COMMIT
 			COMMIT = True
 
+def commit():
+	return conn.commit()
+
 async def while_commit():
+	'''
+	This is my very cheap workaround of "eventual consistency". I know it's bad,
+	and I'm welcoming of any change you think is better than this.
+	'''
 	global COMMIT
 	while True:
 		if COMMIT:
 			conn.commit()
 			COMMIT = False
-			await asyncio.sleep(5)
+		await asyncio.sleep(2)
 
 async def main():
 	asyncio.ensure_future(while_commit())

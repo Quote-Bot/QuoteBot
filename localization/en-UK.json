@@ -6,5 +6,6 @@
 	"MAIN_quote_noperms": "**I don't have permissions to fetch messages from that channel.**",
 	"MAIN_quote_inputerror": "**Please specify a valid message ID or URL.**",
 	"MAIN_quote_embedfooter": "Quoted by {0} from #{1}",
-	"META_perms_noembed": "**I don't have `Embed Links` permission.**"
+	"META_perms_noembed": "**I don't have `Embed Links` permission.**",
+	"OWNER_shutdown": "**Shutting down.**"
 }
