@@ -76,4 +76,4 @@ if __name__ == '__main__':
     if bot.config['botlog_webhook_url']:
         bot.load_extension('cogs.Botlog')
 
-bot.run(config['token'])
+    bot.run(config['token'])
