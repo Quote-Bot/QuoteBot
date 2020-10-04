@@ -62,6 +62,11 @@ class QuoteBot(commands.AutoShardedBot):
         if not message.author.bot:
             await self.process_commands(message)
 
+    async def close(self):
+        if db := getattr(self, 'db', False):
+            await db.close()
+        return await super().close()
+
 
 if __name__ == '__main__':
     with open(os.path.join('configs', 'credentials.json')) as json_data:
