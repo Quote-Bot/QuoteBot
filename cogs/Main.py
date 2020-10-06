@@ -51,6 +51,7 @@ class Main(commands.Cog):
         elif not perms.embed_links:
             await ctx.send(content=self.bot.config['response_strings']['error'] + ' ' + await self.bot.localize(ctx.guild, 'META_perms_noembed'))
         else:
+            message = None
             try:
                 msg_id = int(msg)
             except ValueError:
@@ -92,7 +93,7 @@ class Main(commands.Cog):
             if message:
                 await ctx.send(embed=await self.quote_embed(message, ctx.guild, ctx.channel, ctx.author))
             else:
-                await ctx.send(content=bot_config['response_strings']['error'] + ' ' + await self.bot.localize(ctx.guild, 'MAIN_quote_nomessage'))
+                await ctx.send(content=self.bot.config['response_strings']['error'] + ' ' + await self.bot.localize(ctx.guild, 'MAIN_quote_nomessage'))
 
 
 def setup(bot):
