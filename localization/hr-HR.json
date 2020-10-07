@@ -1,0 +1,11 @@
+{
+	"BOTLOG_guild_join": ":inbox_tray: **Dodan Server** `{0}` (`{1}`)\n  Svi članovi servera: {2}\n  Svi serveri: {3}",
+	"BOTLOG_guild_remove": ":outbox_tray: **Server Maknut** `{0}` (`{1}`)\n  Svi članovi servera: {2}\n  Svi serveri: {3}",
+	"MAIN_quote_nomessage": "**Poruka nije pronađena.**",
+	"MAIN_quote_nonsfw": "**Poruka citirane iz NSFW kanala.**",
+	"MAIN_quote_noperms": "**Nemam dozvolu da dobijem poruke iz tog kanala.**",
+	"MAIN_quote_inputerror": "**Molim vas specificirajte važeći ID ili link poruke.**",
+	"MAIN_quote_embedfooter": "Citirano od {0} iz #{1}",
+	"META_perms_noembed": "**Nemam dozvolu `Embed Links`.**",
+	"OWNER_shutdown": "**Isključivanje.**"
+}

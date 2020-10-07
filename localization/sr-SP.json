@@ -1,0 +1,11 @@
+{
+	"BOTLOG_guild_join": ":inbox_tray: **Сервер Додан** `{0}` (`{1}`)\n  Тотални чланови сервера: {2}\n  Тотални сервери: {3}",
+	"BOTLOG_guild_remove": ":outbox_tray: **Guild Removed** `{0}` (`{1}`)\n  Тотални чланови сервера: {2}\n  Тотални сервери: {3}",
+	"MAIN_quote_nomessage": "**Порука није пронађена.**",
+	"MAIN_quote_nonsfw": "**Порука цитирана из НСФВ канала.**",
+	"MAIN_quote_noperms": "**Немам дозволу да читам поруке из тог канала.**",
+	"MAIN_quote_inputerror": "**Спецификујте вредни ИД или УРЛ поруке.**",
+	"MAIN_quote_embedfooter": "Цитирано од {0} из #{1}",
+	"META_perms_noembed": "**Немам `Embed Links` дозволу.**",
+	"OWNER_shutdown": "**Исклјучиванје.**"
+}
