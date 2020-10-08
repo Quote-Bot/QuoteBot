@@ -16,14 +16,15 @@ async def get_prefix(bot, msg):
 
 
 class QuoteBot(commands.AutoShardedBot):
-    def __init__(self, config):
+    def __init__(self, config, intents):
         super().__init__(help_command=None,
                          command_prefix=get_prefix,
                          case_insensitive=True,
                          owner_ids=config['owner_ids'],
                          status=discord.Status.idle,
                          activity=discord.Game('starting up...'),
-                         max_messages=config['max_message_cache'])
+                         max_messages=config['max_message_cache'],
+                         intents=intents)
 
         self.config = config
 
@@ -71,7 +72,12 @@ class QuoteBot(commands.AutoShardedBot):
 if __name__ == '__main__':
     with open(os.path.join('configs', 'credentials.json')) as json_data:
         config = json.load(json_data)
-        bot = QuoteBot(config)
+        intents = discord.Intents()
+        intents.guild_messages=True
+        intents.guilds=(True if config['botlog_webhook_url'] else False)
+        intents.dm_messages=config['intents']['dm_messages']
+        intents.members=config['intents']['members']
+        bot = QuoteBot(config, intents)
 
     extensions = ['cogs.Main', 'cogs.OwnerOnly']
 
