@@ -6,6 +6,6 @@
 	"MAIN_quote_noperms": "**Nemam dozvolu da dobijem poruke iz tog kanala.**",
 	"MAIN_quote_inputerror": "**Molim vas specificirajte važeći ID ili link poruke.**",
 	"MAIN_quote_embedfooter": "Citirano od {0} iz #{1}",
-	"META_perms_noembed": "**Nemam dozvolu `Embed Links`.**",
+	"META_perms_noembed": "**Nemam dozvolu za `Ugrađivanje linkova`.**",
 	"OWNER_shutdown": "**Isključivanje.**"
 }
