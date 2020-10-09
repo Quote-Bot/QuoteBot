@@ -74,6 +74,7 @@ if __name__ == '__main__':
         config = json.load(json_data)
         intents = discord.Intents()
         intents.guild_messages=True
+        intents.guild_reactions=True
         intents.guilds=(True if config['botlog_webhook_url'] else False)
         intents.dm_messages=config['intents']['dm_messages']
         intents.members=config['intents']['members']
