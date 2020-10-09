@@ -1,0 +1,11 @@
+{
+	"BOTLOG_guild_join": ":inbox_tray: **Server Toegevoegd** `{0}` (`{1}`)\n  Aantal server leden: {2}\n  Aantal servers: {3}",
+	"BOTLOG_guild_remove": ":outbox_tray: **Server Verwijderd** `{0}` (`{1}`)\n  Aantal server leden: {2}\n  Aantal servers: {3}",
+	"MAIN_quote_nomessage": "**Het bericht kon niet worden gevonden.**",
+	"MAIN_quote_nonsfw": "**Bericht geciteerd uit een NSFW kanaal.**",
+	"MAIN_quote_noperms": "**Ik heb geen machtiging om berichten uit dat kanaal op te halen.**",
+	"MAIN_quote_inputerror": "**Specificeer alstublieft een geldig bericht ID of URL.**",
+	"MAIN_quote_embedfooter": "Geciteerd door {0} uit #{1}",
+	"META_perms_noembed": "**Ik heb geen `Ingesloten links` machtiging.**",
+	"OWNER_shutdown": "**Afsluiten.**"
+}
