@@ -16,7 +16,7 @@ async def get_prefix(bot, msg):
 
 
 class QuoteBot(commands.AutoShardedBot):
-    def __init__(self, config, intents):
+    def __init__(self, config):
         super().__init__(help_command=None,
                          command_prefix=get_prefix,
                          case_insensitive=True,
@@ -24,14 +24,18 @@ class QuoteBot(commands.AutoShardedBot):
                          status=discord.Status.idle,
                          activity=discord.Game('starting up...'),
                          max_messages=config['max_message_cache'],
-                         intents=intents)
+                         intents=discord.Intents(guild_messages=True,
+                                                 guild_reactions=True,
+                                                 guilds=True,
+                                                 dm_messages=config['intents']['dm_messages'],
+                                                 members=config['intents']['members']))
 
         self.config = config
 
         self.responses = dict()
 
         for filename in os.listdir(path='localization'):
-            with open(os.path.join('localization', filename)) as json_data:
+            with open(os.path.join('localization', filename), encoding='utf-8') as json_data:
                 self.responses[filename[:-5]] = json.load(json_data)
 
     async def localize(self, guild, query):
@@ -72,13 +76,7 @@ class QuoteBot(commands.AutoShardedBot):
 if __name__ == '__main__':
     with open(os.path.join('configs', 'credentials.json')) as json_data:
         config = json.load(json_data)
-        intents = discord.Intents()
-        intents.guild_messages=True
-        intents.guild_reactions=True
-        intents.guilds=(True if config['botlog_webhook_url'] else False)
-        intents.dm_messages=config['intents']['dm_messages']
-        intents.members=config['intents']['members']
-        bot = QuoteBot(config, intents)
+        bot = QuoteBot(config)
 
     extensions = ['cogs.Main', 'cogs.OwnerOnly']
 
