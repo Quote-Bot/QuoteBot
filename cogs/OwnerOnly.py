@@ -9,7 +9,7 @@ class OwnerOnly(commands.Cog):
     @commands.command()
     async def shutdown(self, ctx):
         try:
-            await ctx.send(content=self.bot.config['response_strings']['success'] + ' ' + await self.bot.localize(ctx.guild, 'OWNER_shutdown'))
+            await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'OWNER_shutdown')}")
         except discord.Forbidden:
             pass
         await self.bot.close()
