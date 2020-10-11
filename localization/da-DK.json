@@ -2,6 +2,7 @@
 	"BOTLOG_guild_join": ":inbox_tray: **Server Tilføjet** `{0}` (`{1}`)\n  Total server medlemmer: {2}\n  Total servere: {3}",
 	"BOTLOG_guild_remove": ":outbox_tray: **Server Fjernet** `{0}` (`{1}`)\n  Total server medlemmer: {2}\n  Total servere: {3}",
 	"MAIN_quote_nomessage": "**Kunne ikke finde beskeden.**",
+	"MAIN_quote_attachments": "Vedhæftede fil(er)",
 	"MAIN_quote_nonsfw": "**Beskeden citeret fra en NSFW kanal.**",
 	"MAIN_quote_noperms": "**Jeg har ikke adgang til at hente beskeder fra den kanal.**",
 	"MAIN_quote_inputerror": "**Specificier en gyldig besked ID eller URL.**",

@@ -1,0 +1,12 @@
+{
+	"BOTLOG_guild_join": ":inbox_tray: **ギルド追加** `{0}` (`{1}`)\n  全てのギルドメンバー: {2}\n  全てのギルド: {3}",
+	"BOTLOG_guild_remove": ":outbox_tray: **ギルド取り除く** `{0}` (`{1}`)\n  全てのギルドメンバー: {2}\n  全てのギルド: {3}",
+	"MAIN_quote_nomessage": "**そのメッセージを見つかりませんでした。**",
+	"MAIN_quote_attachments": "添付ファイル",
+	"MAIN_quote_nonsfw": "**NSFWチャンネルからメッセージを引用された。**",
+	"MAIN_quote_noperms": "**そのチャンネルからメッセージを読みする許可がありません。**",
+	"MAIN_quote_inputerror": "**有効なメッセージIDまたはURLを特定してください。**",
+	"MAIN_quote_embedfooter": "{0}から#{1}引用した。",
+	"META_perms_noembed": "**`埋め込みリンク`の許可がありません。**",
+	"OWNER_shutdown": "**OFFする。**"
+}
