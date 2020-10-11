@@ -21,7 +21,7 @@ class DBService:
                 id INTEGER PRIMARY KEY,
                 prefix TEXT DEFAULT '%s' NOT NULL,
                 language TEXT DEFAULT '%s' NOT NULL,
-                on_reaction INTEGER,
+                on_reaction INTEGER DEFAULT 0 NOT NULL,
                 pin_channel INTEGER
             )
         """.format(config['default_prefix'], config['default_lang']))
