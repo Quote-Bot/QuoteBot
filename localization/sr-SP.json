@@ -7,6 +7,15 @@
 	"MAIN_quote_noperms": "**Немам дозволу да читам поруке из тог канала.**",
 	"MAIN_quote_inputerror": "**Спецификујте вредни ИД или УРЛ поруке.**",
 	"MAIN_quote_embedfooter": "Цитирано од {0} из #{1}",
+	"MAIN_togglereaction_enabled": "**Цитиранје реакцијом је уклјучено.**",
+	"MAIN_togglereaction_disabled": "**Цитиранје реакцијом је исклјучено.**",
+	"PERSONAL_personal_notfound": "**Неважећи ИД.**",
+	"PERSONAL_personal_embedfooter": "Особни Цитат",
+	"PERSONAL_personallist_noquotes": "**Нема особни цитата на овој страници.**",
+	"PERSONAL_personallist_embedauthor": "Моји Цитати",
+	"PERSONAL_personaladd_added": "**Особни Цитат `#{0}` додан.**",
+	"PERSONAL_personalremove_removed": "**Особни Цитат уклонјен.**",
+	"PERSONAL_personalclear_cleared": "**Уклонјени сви особни цитати.**",
 	"META_perms_noembed": "**Немам дозволу за `Уграђиванје линкова`.**",
 	"OWNER_shutdown": "**Исклјучиванје.**"
 }
