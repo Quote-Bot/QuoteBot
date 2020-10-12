@@ -95,13 +95,13 @@ class Main(commands.Cog):
     @commands.command()
     @commands.has_permissions(manage_guild=True)
     async def togglereaction(self, ctx):
-        toggle = await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (str(ctx.guild.id)))).fetchone()
+        toggle = await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (str(ctx.guild.id),))).fetchone()
         if toggle[0] == 0:
-            await self.bot.db.execute("UPDATE guild SET on_reaction = 1 WHERE id = ?", (str(ctx.guild.id)))
+            await self.bot.db.execute("UPDATE guild SET on_reaction = 1 WHERE id = ?", (str(ctx.guild.id),))
             await self.bot.db.commit()
             await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_enabled')}")
         else:
-            await self.bot.db.execute("UPDATE guild SET on_reaction = 0 WHERE id = ?", (str(ctx.guild.id)))
+            await self.bot.db.execute("UPDATE guild SET on_reaction = 0 WHERE id = ?", (str(ctx.guild.id),))
             await self.bot.db.commit()
             await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_disabled')}")
 
