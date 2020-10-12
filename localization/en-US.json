@@ -9,6 +9,13 @@
 	"MAIN_quote_embedfooter": "Quoted by {0} from #{1}",
 	"MAIN_togglereaction_enabled": "**On reaction quoting enabled.**",
 	"MAIN_togglereaction_disabled": "**On reaction quoting disabled.**",
+	"PERSONAL_personal_notfound": "**Invalid ID.**",
+	"PERSONAL_personal_embedfooter": "Personal Quote",
+	"PERSONAL_personallist_noquotes": "**There are no Personal Quotes on this page.**",
+	"PERSONAL_personallist_embedauthor": "My Quotes",
+	"PERSONAL_personaladd_added": "**Personal Quote `#{0}` added.**",
+	"PERSONAL_personalremove_removed": "**Personal Quote removed.**",
+	"PERSONAL_personalclear_cleared": "**Cleared all Personal Quotes.**",
 	"META_perms_noembed": "**I don't have `Embed Links` permission.**",
 	"OWNER_shutdown": "**Shutting down.**"
 }

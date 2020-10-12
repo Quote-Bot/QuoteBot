@@ -78,7 +78,7 @@ if __name__ == '__main__':
         config = json.load(json_data)
         bot = QuoteBot(config)
 
-    extensions = ['cogs.Main', 'cogs.OwnerOnly']
+    extensions = ['cogs.Main', 'cogs.PersonalQuotes', 'cogs.OwnerOnly']
 
     for extension in extensions:
         bot.load_extension(extension)
