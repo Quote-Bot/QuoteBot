@@ -12,14 +12,14 @@ class Events(commands.Cog):
         async with aiohttp.ClientSession() as session:
             webhook = discord.Webhook.from_url(self.bot.config['botlog_webhook_url'], adapter=discord.AsyncWebhookAdapter(session))
             localized_content = await self.bot.localize(webhook.guild, 'BOTLOG_guild_join')
-            await webhook.send(username=self.bot.user.name, avatar_url=self.bot.user.avatar_url, content=localized_content.format(str(guild).strip('`'), guild.id, guild.member_count, len(self.bot.guilds)))
+            await webhook.send(username=self.bot.user.name, avatar_url=self.bot.user.avatar_url, content=f"{self.bot.config['response_strings']['guild_add']} {localized_content.format(str(guild).strip('`'), guild.id, guild.member_count, len(self.bot.guilds))}")
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
         async with aiohttp.ClientSession() as session:
             webhook = discord.Webhook.from_url(self.bot.config['botlog_webhook_url'], adapter=discord.AsyncWebhookAdapter(session))
             localized_content = await self.bot.localize(webhook.guild, 'BOTLOG_guild_remove')
-            await webhook.send(username=self.bot.user.name, avatar_url=self.bot.user.avatar_url, content=localized_content.format(str(guild).strip('`'), guild.id, guild.member_count, len(self.bot.guilds)))
+            await webhook.send(username=self.bot.user.name, avatar_url=self.bot.user.avatar_url, content=f"{self.bot.config['response_strings']['guild_remove']} {localized_content.format(str(guild).strip('`'), guild.id, guild.member_count, len(self.bot.guilds))}")
 
 
 def setup(bot):

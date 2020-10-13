@@ -1,6 +1,6 @@
 {
-	"BOTLOG_guild_join": ":inbox_tray: **Guild Added** `{0}` (`{1}`)\n  Total guild members: {2}\n  Total guilds: {3}",
-	"BOTLOG_guild_remove": ":outbox_tray: **Guild Removed** `{0}` (`{1}`)\n  Total guild members: {2}\n  Total guilds: {3}",
+	"BOTLOG_guild_join": "**Guild Added** `{0}` (`{1}`)\n  Total guild members: {2}\n  Total guilds: {3}",
+	"BOTLOG_guild_remove": "**Guild Removed** `{0}` (`{1}`)\n  Total guild members: {2}\n  Total guilds: {3}",
 	"MAIN_quote_nomessage": "**Couldn't find the message.**",
 	"MAIN_quote_attachments": "Attachment(s)",
 	"MAIN_quote_nonsfw": "**Message quoted from a NSFW channel.**",

@@ -1,6 +1,6 @@
 {
-	"BOTLOG_guild_join": ":inbox_tray: **ギルド追加** `{0}` (`{1}`)\n  全てのギルドメンバー: {2}\n  全てのギルド: {3}",
-	"BOTLOG_guild_remove": ":outbox_tray: **ギルド取り除けった** `{0}` (`{1}`)\n  全てのギルドメンバー: {2}\n  全てのギルド: {3}",
+	"BOTLOG_guild_join": "**ギルド追加** `{0}` (`{1}`)\n  全てのギルドメンバー: {2}\n  全てのギルド: {3}",
+	"BOTLOG_guild_remove": "**ギルド取り除けった** `{0}` (`{1}`)\n  全てのギルドメンバー: {2}\n  全てのギルド: {3}",
 	"MAIN_quote_nomessage": "**そのメッセージを見つかりませんでした。**",
 	"MAIN_quote_attachments": "添付ファイル",
 	"MAIN_quote_nonsfw": "**NSFWチャンネルからメッセージを引用された。**",
