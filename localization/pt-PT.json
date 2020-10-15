@@ -1,0 +1,21 @@
+{
+    "BOTLOG_guild_join": "**Servidor Adicionado** `{0}` (`{1}`)\n  Número total de membros no servidor: {2}\n  Número total de servidores: {3}",
+    "BOTLOG_guild_remove": "**Servidor Removido** `{0}` (`{1}`)\n  Número total de membros no servidor: {2}\n  Número total de servidores: {3}",
+    "MAIN_quote_nomessage": "**Não foi possível encontrar a mensagem.**",
+    "MAIN_quote_attachments": "Anexo(s)",
+    "MAIN_quote_nonsfw": "**A mensagem citada vem de um canal NSFW.**",
+    "MAIN_quote_noperms": "**Eu não tenho permissões para buscar mensagens naquele canal.**",
+    "MAIN_quote_inputerror": "**Por favor especifique um ID de mensagem válido ou um URL.**",
+    "MAIN_quote_embedfooter": "Citado por {0} de #{1}",
+    "MAIN_togglereaction_enabled": "**Citar apartir de reação ativado.**",
+    "MAIN_togglereaction_disabled": "**Citar apartir de reação desativado.**",
+    "PERSONAL_personal_notfound": "**ID Inválido.**",
+    "PERSONAL_personal_embedfooter": "Citação Pessoal",
+    "PERSONAL_personallist_noquotes": "**Não há Citações Pessoais nesta página.**",
+    "PERSONAL_personallist_embedauthor": "Minhas Citações",
+    "PERSONAL_personaladd_added": "**Citação Pessoal `#{0}` adicionada.**",
+    "PERSONAL_personalremove_removed": "**Citação Pessoal removida.**",
+    "PERSONAL_personalclear_cleared": "**As Citações Pessoais foram removidas.**",
+    "META_perms_noembed": "**Eu não tenho a permissão `Inserir Links`.**",
+    "OWNER_shutdown": "**Desligando.**"
+}
