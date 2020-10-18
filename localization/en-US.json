@@ -11,7 +11,7 @@
     "MAIN_togglereaction_disabled": "**On reaction quoting disabled.**",
     "MAIN_clone_msglimit": "**You can only clone up to 50 messages.**",
     "MAIN_clone_inprogress": "**Cloning {0} messages...**",
-    "MAIN_clone_webhookfail": "**Something went wrong with the Webhook; couldn't finish cloning messages.**",
+    "MAIN_clone_webhookfail": "**Something went wrong with the Webhook: couldn't finish cloning messages.**",
     "MAIN_clone_success": "**Cloning complete.**",
     "PERSONAL_personal_notfound": "**Invalid ID.**",
     "PERSONAL_personal_embedfooter": "Personal Quote",
