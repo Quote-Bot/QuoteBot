@@ -11,8 +11,7 @@ class DBService:
         self.con = await connect('configs/QuoteBot.db', detect_types=PARSE_DECLTYPES | PARSE_COLNAMES)
         self.cur = await self.con.cursor()
 
-        result = await (await self.cur.execute("PRAGMA auto_vacuum")).fetchone()
-        if result[0] == 0:
+        if (await (await self.cur.execute("PRAGMA auto_vacuum")).fetchone())[0] == 0:
             await self.cur.execute("PRAGMA auto_vacuum = 1")
 
         await self.cur.execute("""
@@ -29,7 +28,7 @@ class DBService:
             CREATE TABLE
             IF NOT EXISTS personal_quote (
                 id INTEGER PRIMARY KEY,
-                author INTEGER,
+                author INTEGER NOT NULL,
                 response TEXT
             )
         """)

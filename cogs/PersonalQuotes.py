@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+
 class PersonalQuotes(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -13,41 +14,41 @@ class PersonalQuotes(commands.Cog):
 
     @commands.command()
     async def personal(self, ctx, quote_id: int):
-        fetch_quote = await (await self.bot.db.execute("SELECT * FROM personal_quote WHERE id = ? AND author = ?", (quote_id, ctx.author.id))).fetchone()
-        if not fetch_quote:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personal_notfound')}")
-        else:
+        if fetch_quote := await (await self.bot.db.execute("SELECT * FROM personal_quote WHERE id = ?", (quote_id,))).fetchone():
             await ctx.send(embed=await self.personal_embed(ctx.guild, ctx.author, fetch_quote[2]))
-
-    @commands.command(aliases = ['plist'])
-    async def personallist(self, ctx, page: int = 1):
-        fetch_quotes = await (await self.bot.db.execute("SELECT * FROM personal_quote WHERE author = ? LIMIT 10 OFFSET ?", (ctx.author.id, page-1))).fetchall()
-        if not fetch_quotes:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personallist_noquotes')}")
         else:
-            embed = discord.Embed(description='\n'.join(f"`#{i[0]}`" for i in fetch_quotes), color=ctx.author.color.value or discord.Embed.Empty)
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personal_notfound')}")
+
+    @commands.command(aliases=['plist'])
+    async def personallist(self, ctx, page: int = 1):
+        if fetch_quotes := await (await self.bot.db.execute("SELECT id, response FROM personal_quote WHERE author = ? LIMIT 10 OFFSET ?", (ctx.author.id, page - 1))).fetchall():
+            personal_list = ['```']
+            for _id, response in fetch_quotes:
+                response = ' '.join(discord.utils.escape_markdown(response).splitlines())
+                personal_list.append(f"#{_id: <5} {response if len(response) < 50 else f'{response[:47]}...'}")
+            embed = discord.Embed(description='\n'.join(personal_list) + '\n```', color=ctx.author.color.value or discord.Embed.Empty)
             embed.set_author(name=await self.bot.localize(ctx.guild, 'PERSONAL_personallist_embedauthor'), icon_url=ctx.author.avatar_url)
             await ctx.send(embed=embed)
+        else:
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personallist_noquotes')}")
 
-    @commands.command(aliases = ['padd'])
+    @commands.command(aliases=['padd'])
     async def personaladd(self, ctx, *, response: str):
         await self.bot.db.execute("INSERT INTO personal_quote (author, response) VALUES (?, ?)", (str(ctx.author.id), response))
         await self.bot.db.commit()
         quote_id = await (await self.bot.db.execute("SELECT id FROM personal_quote WHERE author = ? ORDER BY id DESC", (ctx.author.id,))).fetchone()
-        bot_response = await self.bot.localize(ctx.guild, 'PERSONAL_personaladd_added')
-        await ctx.send(content=f"{self.bot.config['response_strings']['success']} {bot_response.format(str(quote_id[0]))}")
+        await ctx.send(content=f"{self.bot.config['response_strings']['success']} {(await self.bot.localize(ctx.guild, 'PERSONAL_personaladd_added')).format(str(quote_id[0]))}")
 
-    @commands.command(aliases = ['premove'])
+    @commands.command(aliases=['premove'])
     async def personalremove(self, ctx, quote_id: int):
-        fetch_quote = await (await self.bot.db.execute("SELECT * FROM personal_quote WHERE id = ? AND author = ?", (quote_id, ctx.author.id))).fetchone()
-        if not fetch_quote:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personal_notfound')}")
-        else:
+        if fetch_quote := await (await self.bot.db.execute("SELECT * FROM personal_quote WHERE author = ? AND id = ?", (ctx.author.id, quote_id))).fetchone():
             await self.bot.db.execute("DELETE FROM personal_quote WHERE id = ?", (quote_id,))
             await self.bot.db.commit()
             await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'PERSONAL_personalremove_removed')}")
+        else:
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personal_notfound')}")
 
-    @commands.command(aliases = ['pclear'])
+    @commands.command(aliases=['pclear'])
     async def personalclear(self, ctx):
         await self.bot.db.execute("DELETE FROM personal_quote WHERE author = ?", (ctx.author.id,))
         await self.bot.db.commit()
