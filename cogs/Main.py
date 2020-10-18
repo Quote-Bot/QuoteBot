@@ -1,4 +1,6 @@
 import re
+import aiohttp
+import asyncio
 
 import discord
 from discord.ext import commands
@@ -104,6 +106,27 @@ class Main(commands.Cog):
             await self.bot.db.execute("UPDATE guild SET on_reaction = 0 WHERE id = ?", (str(ctx.guild.id),))
             await self.bot.db.commit()
             await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_disabled')}")
+
+    @commands.command()
+    @commands.has_permissions(manage_messages=True)
+    async def clone(self, ctx, msgs: int, channel: discord.TextChannel):
+        if not ctx.guild.me.permissions_in(channel).manage_webhooks:
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nowebhooktarget')}")
+        elif msgs > 50:
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_clone_msglimit')}")
+        else:
+            bot_msg = await ctx.send(content=(await self.bot.localize(ctx.guild, 'MAIN_clone_inprogress')).format(str(msg)))
+            webhook_obj = await channel.create_webhook(name=self.bot.name)
+            async with aiohttp.ClientSession() as session:
+                webhook = discord.Webhook.from_url(self.bot.config['botlog_webhook_url'], adapter=discord.AsyncWebhookAdapter(session))
+                async for msg in ctx.history(limit=msgs, oldest_first=True):
+                    await webhook.send(username=msg.author.name, avatar_url=msg.author.avatar_url, content=msg.content, embeds=msg.embeds, wait=True)
+                    try:
+                        await asyncio.sleep(0.5)
+                    except (discord.NotFound, discord.Forbidden):
+                        return await bot_msg.edit(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_clone_webhookfail')}")
+            await bot_msg.edit(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_clone_success')}")
+            await webhook_obj.delete()
 
 
 def setup(bot):

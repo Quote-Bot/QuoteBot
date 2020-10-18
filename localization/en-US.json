@@ -9,6 +9,10 @@
     "MAIN_quote_embedfooter": "Quoted by {0} from #{1}",
     "MAIN_togglereaction_enabled": "**On reaction quoting enabled.**",
     "MAIN_togglereaction_disabled": "**On reaction quoting disabled.**",
+    "MAIN_clone_msglimit": "**You can only clone up to 50 messages.**",
+    "MAIN_clone_inprogress": "**Cloning {0} messages...**",
+    "MAIN_clone_webhookfail": "**Something went wrong with the Webhook; couldn't finish cloning messages.**",
+    "MAIN_clone_success": "**Cloning complete.**",
     "PERSONAL_personal_notfound": "**Invalid ID.**",
     "PERSONAL_personal_embedfooter": "Personal Quote",
     "PERSONAL_personallist_noquotes": "**There are no Personal Quotes on this page.**",
@@ -17,5 +21,6 @@
     "PERSONAL_personalremove_removed": "**Personal Quote removed.**",
     "PERSONAL_personalclear_cleared": "**Cleared all Personal Quotes.**",
     "META_perms_noembed": "**I don't have `Embed Links` permission.**",
+    "META_perms_nowebhooktarget": "**I don't have `Manage Webhooks` permission in the target channel.**",
     "OWNER_shutdown": "**Shutting down.**"
 }
