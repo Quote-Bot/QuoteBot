@@ -6,11 +6,10 @@ class OwnerOnly(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-   	def is_owner(self, ctx):
-        return ctx.author.id in self.bot.config['owner_ids']
+    async def cog_check(self, ctx):
+        return await self.bot.is_owner(ctx.author)
 
     @commands.command()
-    @commands.check(is_owner)
     async def shutdown(self, ctx):
         try:
             await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'OWNER_shutdown')}")
