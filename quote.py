@@ -20,7 +20,6 @@ class QuoteBot(commands.AutoShardedBot):
         super().__init__(help_command=None,
                          command_prefix=get_prefix,
                          case_insensitive=True,
-                         owner_ids=config['owner_ids'],
                          status=discord.Status.idle,
                          activity=discord.Game('starting up...'),
                          max_messages=config['max_message_cache'],
