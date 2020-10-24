@@ -21,6 +21,6 @@
     "PERSONAL_personalremove_removed": "**Personal Quote removed.**",
     "PERSONAL_personalclear_cleared": "**Cleared all Personal Quotes.**",
     "META_perms_noembed": "**I don't have `Embed Links` permission.**",
-    "META_perms_nowebhooktarget": "**I don't have `Manage Webhooks` permission in the target channel.**",
+    "META_perms_nowebhook": "**I don't have `Manage Webhooks` permission.**",
     "OWNER_shutdown": "**Shutting down.**"
 }

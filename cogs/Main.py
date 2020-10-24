@@ -109,24 +109,25 @@ class Main(commands.Cog):
 
     @commands.command()
     @commands.has_permissions(manage_messages=True)
-    async def clone(self, ctx, msgs: int, channel: discord.TextChannel):
-        if not ctx.guild.me.permissions_in(channel).manage_webhooks:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nowebhooktarget')}")
-        elif msgs > 50:
+    async def clone(self, ctx, msg_limit: int, channel: discord.TextChannel):
+        if not ctx.guild.me.permissions_in(ctx.channel).manage_webhooks:
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nowebhook')}")
+        elif msg_limit > 50:
             await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_clone_msglimit')}")
         else:
-            bot_msg = await ctx.send(content=(await self.bot.localize(ctx.guild, 'MAIN_clone_inprogress')).format(str(msgs)))
-            webhook_obj = await channel.create_webhook(name=self.bot.name)
+            webhook_obj = await ctx.channel.create_webhook(name=self.bot.user.name)
+            messages = await channel.history(limit=msg_limit, before=ctx.message).flatten()
             async with aiohttp.ClientSession() as session:
                 webhook = discord.Webhook.from_url(webhook_obj.url, adapter=discord.AsyncWebhookAdapter(session))
-                async for msg in ctx.history(limit=msgs, oldest_first=True):
+                for msg in messages[::-1]:
                     try:
-                        await webhook.send(username=msg.author.name, avatar_url=msg.author.avatar_url, content=msg.content, embeds=msg.embeds, wait=True)
+                        await webhook.send(username=(msg.author.nick if isinstance(msg.author, discord.Member) and msg.author.nick else msg.author.name), avatar_url=msg.author.avatar_url, content=msg.content, embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == 'rich' else None), wait=True)
                     except (discord.NotFound, discord.Forbidden):
-                        return await bot_msg.edit(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_clone_webhookfail')}")
+                        break
                     else:
-                        await asyncio.sleep(0.5)
-            await bot_msg.edit(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_clone_success')}")
+                        messages.remove(msg)
+                        if messages:
+                            await asyncio.sleep(0.5)
             await webhook_obj.delete()
 
 
