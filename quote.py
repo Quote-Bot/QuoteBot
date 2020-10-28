@@ -9,15 +9,59 @@ from db_service import DBService
 
 async def get_prefix(bot, msg):
     try:
-        guild_prefix = await (await bot.db.execute("SELECT prefix FROM guild WHERE id = ?", (msg.guild.id,))).fetchone()
-        return commands.when_mentioned_or(guild_prefix[0])(bot, msg)
+        return commands.when_mentioned_or((await (await bot.db.execute("SELECT prefix FROM guild WHERE id = ?", (msg.guild.id,))).fetchone())[0] if msg.guild else bot.config['default_prefix'])(bot, msg)
     except Exception:
         return commands.when_mentioned_or(bot.config['default_prefix'])(bot, msg)
 
 
+class QuoteBotHelpCommand(commands.HelpCommand):
+    def command_not_found(self, string):
+        return string
+
+    def subcommand_not_found(self, command, string):
+        return string
+
+    async def get_prefix(self, guild):
+        try:
+            return (await (await bot.db.execute("SELECT prefix FROM guild WHERE id = ?", (guild.id,))).fetchone())[0] if guild else bot.config['default_prefix']
+        except Exception:
+            return bot.config['default_prefix']
+
+    async def send_bot_help(self, mapping):
+        ctx = self.context
+        bot = ctx.bot
+        prefix = await self.get_prefix(ctx.guild)
+        embed = discord.Embed(color=ctx.guild.me.color.value or bot.config['default_embed_color'])
+        embed.add_field(name=await bot.localize(ctx.guild, 'HELPEMBED_links'),
+                        value=f"[{await bot.localize(ctx.guild, 'HELPEMBED_supportserver')}](https://discord.gg/vkWyTGa)\n"
+                              f"[{await bot.localize(ctx.guild, 'HELPEMBED_addme')}](https://discordapp.com/oauth2/authorize?client_id={bot.user.id}&permissions=347136&scope=bot)\n"
+                              f"[{await bot.localize(ctx.guild, 'HELPEMBED_website')}](https://quote-bot.tk/)\n"
+                              "[GitHub](https://github.com/Quote-Bot/QuoteBot)")
+        embed.add_field(name=await bot.localize(ctx.guild, 'HELPEMBED_commands'),
+                        value=', '.join(f'`{prefix}{command}`' for command in sorted(c.name for c in bot.commands)))
+        embed.set_footer(text=(await bot.localize(ctx.guild, 'HELPEMBED_footer')).format(prefix))
+        await ctx.send(embed=embed)
+
+    async def send_cog_help(self, cog):
+        return await self.send_error_message(cog.qualified_name)
+
+    async def send_command_help(self, command):
+        ctx = self.context
+        bot = ctx.bot
+        embed = discord.Embed(color=ctx.guild.me.color.value or bot.config['default_embed_color'],
+                              title=self.get_command_signature(command),
+                              description=await bot.localize(ctx.guild, f'HELP_{command.name}'))
+        await ctx.send(embed=embed)
+
+    async def send_error_message(self, error):
+        ctx = self.context
+        bot = ctx.bot
+        return await ctx.send(f"{bot.config['response_strings']['error']} {(await bot.localize(ctx.guild, 'HELP_notfound')).format(repr(error))}")
+
+
 class QuoteBot(commands.AutoShardedBot):
     def __init__(self, config):
-        super().__init__(help_command=None,
+        super().__init__(help_command=QuoteBotHelpCommand(),
                          command_prefix=get_prefix,
                          case_insensitive=True,
                          owner_ids=set(config['owner_ids']),
@@ -40,8 +84,8 @@ class QuoteBot(commands.AutoShardedBot):
 
     async def localize(self, guild, query):
         try:
-            lang = await (await self.db.execute("SELECT language FROM guild WHERE id = ?", (guild.id,))).fetchone()
-            return self.responses[lang[0]][query]
+            lang = (await (await self.db.execute("SELECT language FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]
+            return self.responses[lang][query]
         except Exception:
             return self.responses[self.config['default_lang']][query]
 
