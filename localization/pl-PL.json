@@ -1,0 +1,23 @@
+{
+    "BOTLOG_guild_join": "**Gildia dodana** `{0}` (`{1}`)\n  Wszystkich członków gildii: {2}\n  Wszystkich gildii: {3}",
+    "BOTLOG_guild_remove": "**Gildia usunięta** `{0}` (`{1}`)\n  Wszystkich członków gildii: {2}\n  Wszystkich gildii: {3}",
+    "MAIN_quote_nomessage": "**Nie odnaleziono wiadomości.**",
+    "MAIN_quote_attachments": "Załącznik(i)",
+    "MAIN_quote_nonsfw": "**Wiadomość zacytowana z kanału NSFW.**",
+    "MAIN_quote_noperms": "**Nie posiadam uprawnień aby wydobyć wiadomości z tego kanału.**",
+    "MAIN_quote_inputerror": "**Proszę podać poprawny ID wiadomości lub URL.**",
+    "MAIN_quote_embedfooter": "Zacytowane przez {0} z #{1}",
+    "MAIN_togglereaction_enabled": "**Cytowanie na reakcję aktywne.**",
+    "MAIN_togglereaction_disabled": "**Cytowanie na reakcję nieaktywne.**",
+    "MAIN_clone_msglimit": "**Możesz sklonować tylko do 50 wiadomości.**",
+    "PERSONAL_personal_notfound": "**Nieprawidłowy ID.**",
+    "PERSONAL_personal_embedfooter": "Osobisty Cytat",
+    "PERSONAL_personallist_noquotes": "**Nie ma żadnych Osobistych Cytatów na tej stronie.**",
+    "PERSONAL_personallist_embedauthor": "Moje Cytaty",
+    "PERSONAL_personaladd_added": "**Osobisty Cytat `#{0}` dodany.**",
+    "PERSONAL_personalremove_removed": "**Osobisty Cytat usunięty.**",
+    "PERSONAL_personalclear_cleared": "**Wyczyszczono wszystkie Osobiste Cytaty.**",
+    "META_perms_noembed": "**Nie mam pozwolenia na `Wyświetlanie podglądu linku`.**",
+    "META_perms_nowebhook": "**Nie mam pozwolenia na `Zarządzanie webhookami`.**",
+    "OWNER_shutdown": "**Wyłączanie.**"
+}
