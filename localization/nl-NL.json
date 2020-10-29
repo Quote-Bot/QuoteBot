@@ -26,6 +26,7 @@
     "MAIN_quote_noperms": "**Ik heb geen machtiging om berichten uit dat kanaal op te halen.**",
     "MAIN_quote_inputerror": "**Specificeer alstublieft een geldig bericht ID of URL.**",
     "MAIN_quote_embedfooter": "Geciteerd door {0} uit #{1}",
+    "MAIN_quote_linkfooter": "Gelinkt door {0} uit #{1}",
     "MAIN_toggledelete_enabled": "**Verwijderen van citeer commando berichten ingeschakeld.**",
     "MAIN_toggledelete_disabled": "**Verwijderen van citeer commando berichten uitgeschakeld.**",
     "MAIN_togglelinks_enabled": "**Citeren van gelinkte berichten ingeschakeld.**",

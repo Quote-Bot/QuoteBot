@@ -34,7 +34,7 @@ class Main(commands.Cog):
             else:
                 raise discord.Forbidden(None, 'Lacking required permissions to fetch the message.')
 
-    async def quote_embed(self, msg, channel, user):
+    async def quote_embed(self, msg, channel, user, linked=False):
         embed = discord.Embed(description=msg.content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
         embed.set_author(name=str(msg.author), icon_url=msg.author.avatar_url)
         if msg.attachments:
@@ -46,13 +46,12 @@ class Main(commands.Cog):
             else:
                 embed.add_field(name=f"{await self.bot.localize(channel.guild, 'MAIN_quote_attachments')}",
                                 value='\n'.join(f'[{attachment.filename}]({attachment.url})' for attachment in msg.attachments))
-        footer_text = await self.bot.localize(channel.guild, 'MAIN_quote_embedfooter')
-        embed.set_footer(text=footer_text.format(str(user), msg.channel.name))
+        embed.set_footer(text=(await self.bot.localize(channel.guild, 'MAIN_quote_linkfooter' if linked else 'MAIN_quote_embedfooter')).format(user, msg.channel.name))
         return embed
 
     @commands.Cog.listener()
     async def on_message(self, msg):
-        if msg.author.bot or not msg.guild:
+        if msg.author.bot or not msg.guild or (await self.bot.get_context(msg)).valid:
             return
         async with connect('configs/QuoteBot.db') as db:
             async with db.execute("SELECT quote_links FROM guild WHERE id = ?", (msg.guild.id,)) as cursor:
@@ -60,7 +59,7 @@ class Main(commands.Cog):
                     return
         if msg_url := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
             try:
-                return await msg.channel.send(embed=await self.quote_embed(await self.get_message_from_url(msg_url), msg.channel, msg.author))
+                return await msg.channel.send(embed=await self.quote_embed(await self.get_message_from_url(msg_url), msg.channel, msg.author, True))
             except (discord.NotFound, discord.Forbidden):
                 pass
 
