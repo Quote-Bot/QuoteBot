@@ -15,7 +15,7 @@ MARKDOWN = re.compile((r"```.*?```"                      # ```multiline code```
                        r"|__.*?__"                       # __underline__
                        r"|~~.*?~~"                       # ~~strikethrough~~
                        r"|\|\|.*?\|\|"                   # ||spoiler||
-                       r"|<https?://\S*?>"),             # <surpressed links>
+                       r"|<https?://\S*?>"),             # <suppressed links>
                       re.DOTALL | re.MULTILINE)
 MESSAGE_URL = re.compile(r"https?://((canary|ptb|www)\.)?discord(app)?\.com/channels/"
                          r"(?P<guild_id>\d+)/(?P<channel_id>\d+)/"
@@ -49,14 +49,6 @@ class Main(commands.Cog):
         footer_text = await self.bot.localize(channel.guild, 'MAIN_quote_embedfooter')
         embed.set_footer(text=footer_text.format(str(user), msg.channel.name))
         return embed
-
-    @commands.Cog.listener()
-    async def on_guild_join(self, guild):
-        try:
-            await self.bot.insert_new_guild(guild)
-            await self.bot.db.commit()
-        except Exception:
-            pass
 
     @commands.Cog.listener()
     async def on_message(self, msg):

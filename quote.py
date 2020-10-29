@@ -34,7 +34,7 @@ class QuoteBotHelpCommand(commands.HelpCommand):
         embed = discord.Embed(color=ctx.guild.me.color.value or bot.config['default_embed_color'])
         embed.add_field(name=await bot.localize(ctx.guild, 'HELPEMBED_links'),
                         value=f"[{await bot.localize(ctx.guild, 'HELPEMBED_supportserver')}](https://discord.gg/vkWyTGa)\n"
-                              f"[{await bot.localize(ctx.guild, 'HELPEMBED_addme')}](https://discordapp.com/oauth2/authorize?client_id={bot.user.id}&permissions=347136&scope=bot)\n"
+                              f"[{await bot.localize(ctx.guild, 'HELPEMBED_addme')}](https://discordapp.com/oauth2/authorize?client_id={bot.user.id}&permissions=537257984&scope=bot)\n"
                               f"[{await bot.localize(ctx.guild, 'HELPEMBED_website')}](https://quote-bot.tk/)\n"
                               "[GitHub](https://github.com/Quote-Bot/QuoteBot)")
         embed.add_field(name=await bot.localize(ctx.guild, 'HELPEMBED_commands'),
@@ -82,6 +82,16 @@ class QuoteBot(commands.AutoShardedBot):
             with open(os.path.join('localization', filename), encoding='utf-8') as json_data:
                 self.responses[filename[:-5]] = json.load(json_data)
 
+    async def _update_presence(self):
+        if (guild_count := len(self.guilds)) == 1:
+            await self.change_presence(activity=discord.Activity(
+                    name="messages in 1 server",
+                    type=discord.ActivityType.watching))
+        else:
+            await self.change_presence(activity=discord.Activity(
+                    name=f"messages in {guild_count} servers",
+                    type=discord.ActivityType.watching))
+
     async def localize(self, guild, query):
         try:
             lang = (await (await self.db.execute("SELECT language FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]
@@ -96,7 +106,7 @@ class QuoteBot(commands.AutoShardedBot):
             (guild.id, self.config['default_prefix'], self.config['default_lang']))
 
     async def on_ready(self):
-        await self.change_presence(status=discord.Status.online)
+        await self._update_presence()
         self.db = await DBService.create(self.config)
 
         for guild in self.guilds:
@@ -107,6 +117,17 @@ class QuoteBot(commands.AutoShardedBot):
 
         await self.db.commit()
         print("QuoteBot is ready.")
+
+    async def on_guild_join(self, guild):
+        await self._update_presence()
+        try:
+            await self.insert_new_guild(guild)
+            await self.db.commit()
+        except Exception:
+            pass
+
+    async def on_guild_remove(self, guild):
+        await self._update_presence()
 
     async def on_message(self, msg):
         if not msg.author.bot:
