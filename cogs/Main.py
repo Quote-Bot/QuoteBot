@@ -68,15 +68,14 @@ class Main(commands.Cog):
     async def on_raw_reaction_add(self, payload):
         if payload.emoji.name != '💬':
             return
-        on_reaction = await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (payload.guild_id,))).fetchone()
-        if on_reaction[0] == 1:
+        if (await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (payload.guild_id,))).fetchone())[0]:
             guild = self.bot.get_guild(payload.guild_id)
             channel = guild.get_channel(payload.channel_id)
             perms = guild.me.permissions_in(channel)
             if payload.member.permissions_in(channel).send_messages and perms.read_message_history and perms.send_messages and perms.embed_links:
                 if not (msg := discord.utils.get(self.bot.cached_messages, channel=channel, id=payload.message_id)):
                     msg = await channel.fetch_message(payload.message_id)
-                await channel.send(embed=await self.quote_embed(msg, guild, channel, payload.member))
+                await channel.send(embed=await self.quote_embed(msg, channel, payload.member))
 
     @commands.command(aliases=['q'])
     async def quote(self, ctx, query: str):
