@@ -17,6 +17,7 @@
     "HELP_personallist": "Toon uw lijst van Persoonlijke Citaten.",
     "HELP_personalclear": "Verwijder al uw Persoonlijke Citaten.",
     "HELP_shutdown": "Schakel de bot uit (alleen eigenaren).",
+    "HELP_toggledelete": "Schakel het verwijderen van citeer commando berichten in de server aan of uit. Vereist de 'Server beheren' machtiging.",
     "HELP_togglelinks": "Schakel het citeren van gelinkte berichten in de server aan of uit. Vereist de 'Server beheren' machtiging.",
     "HELP_togglereaction": "Schakel citeren via het toevoegen van :speech_balloon: reacties aan berichten in de server aan of uit. Vereist de 'Server beheren' machtiging.",
     "MAIN_quote_nomessage": "**Het bericht kon niet worden gevonden.**",
@@ -25,6 +26,8 @@
     "MAIN_quote_noperms": "**Ik heb geen machtiging om berichten uit dat kanaal op te halen.**",
     "MAIN_quote_inputerror": "**Specificeer alstublieft een geldig bericht ID of URL.**",
     "MAIN_quote_embedfooter": "Geciteerd door {0} uit #{1}",
+    "MAIN_toggledelete_enabled": "**Verwijderen van citeer commando berichten ingeschakeld.**",
+    "MAIN_toggledelete_disabled": "**Verwijderen van citeer commando berichten uitgeschakeld.**",
     "MAIN_togglelinks_enabled": "**Citeren van gelinkte berichten ingeschakeld.**",
     "MAIN_togglelinks_disabled": "**Citeren van gelinkte berichten uitgeschakeld.**",
     "MAIN_togglereaction_enabled": "**Citeren bij reacties ingeschakeld.**",
@@ -38,6 +41,7 @@
     "PERSONAL_personalremove_removed": "**Persoonlijk Citaat verwijderd.**",
     "PERSONAL_personalclear_cleared": "**Alle Persoonlijke Citaten verwijderd.**",
     "META_perms_noembed": "**Ik heb geen `Ingesloten links` machtiging.**",
+    "META_perms_nomanagemessages": "**Ik heb geen `Berichten beheren` machtiging.**",
     "META_perms_nowebhook": "**Ik heb geen `Webhooks beheren` machtiging.**",
     "OWNER_shutdown": "**Afsluiten.**"
 }

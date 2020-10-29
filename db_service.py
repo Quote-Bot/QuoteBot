@@ -22,6 +22,7 @@ class DBService:
                 language TEXT DEFAULT '%s' NOT NULL,
                 on_reaction INTEGER DEFAULT 0 NOT NULL,
                 quote_links INTEGER DEFAULT 0 NOT NULL,
+                delete_commands INTEGER DEFAULT 0 NOT NULL,
                 pin_channel INTEGER
             )
         """.format(config['default_prefix'], config['default_lang']))

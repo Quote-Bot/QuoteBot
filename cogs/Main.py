@@ -79,11 +79,12 @@ class Main(commands.Cog):
 
     @commands.command(aliases=['q'])
     async def quote(self, ctx, query: str):
-        perms = ctx.guild.me.permissions_in(ctx.channel)
+        if (perms := ctx.guild.me.permissions_in(ctx.channel)).manage_messages and (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0]:
+            await ctx.message.delete()
         if not perms.send_messages:
             return
         elif not perms.embed_links:
-            return await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_noembed')}")
+            return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_noembed')}")
         msg = None
         try:
             msg_id = int(query)
@@ -92,11 +93,11 @@ class Main(commands.Cog):
                 try:
                     msg = await self.get_message_from_url(match)
                 except discord.Forbidden:
-                    return await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_noperms')}")
+                    return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_noperms')}")
                 except discord.NotFound:
                     pass
             else:
-                return await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_inputerror')}")
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_inputerror')}")
         else:
             if not (msg := discord.utils.get(self.bot.cached_messages, channel=ctx.channel, id=msg_id)) or (msg := discord.utils.get(self.bot.cached_messages, guild=ctx.guild, id=msg_id)):
                 try:
@@ -114,17 +115,19 @@ class Main(commands.Cog):
         if msg:
             await ctx.send(embed=await self.quote_embed(msg, ctx.channel, ctx.author))
         else:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_nomessage')}")
+            await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_nomessage')}")
 
-    @commands.command(aliases=['togglereact', 'reactions'])
+    @commands.command(aliases=['togglereactions', 'togglereact', 'reactions'])
+    @commands.guild_only()
     @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
     async def togglereaction(self, ctx):
         new = int(not (await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
         await self.bot.db.execute("UPDATE guild SET on_reaction = ? WHERE id = ?", (new, ctx.guild.id))
         await self.bot.db.commit()
-        await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_enabled' if new else 'MAIN_togglereaction_disabled')}")
+        await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_enabled' if new else 'MAIN_togglereaction_disabled')}")
 
     @commands.command(aliases=['links'])
+    @commands.guild_only()
     @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
     async def togglelinks(self, ctx):
         new = int(not (await (await self.bot.db.execute("SELECT quote_links FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
@@ -132,13 +135,24 @@ class Main(commands.Cog):
         await self.bot.db.commit()
         await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglelinks_enabled' if new else 'MAIN_togglelinks_disabled')}")
 
+    @commands.command(aliases=['delcommands', 'delete'])
+    @commands.guild_only()
+    @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
+    async def toggledelete(self, ctx):
+        new = int(not (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
+        if new and not ctx.me.permissions_in(ctx.channel).manage_messages:
+            return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nomanagemessages')}")
+        await self.bot.db.execute("UPDATE guild SET delete_commands = ? WHERE id = ?", (new, ctx.guild.id))
+        await self.bot.db.commit()
+        await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_toggledelete_enabled' if new else 'MAIN_toggledelete_disabled')}")
+
     @commands.command()
     @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
     async def clone(self, ctx, msg_limit: int, channel: discord.TextChannel):
         if not ctx.guild.me.permissions_in(ctx.channel).manage_webhooks:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nowebhook')}")
+            await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nowebhook')}")
         elif msg_limit > 50:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_clone_msglimit')}")
+            await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_clone_msglimit')}")
         else:
             webhook_obj = await ctx.channel.create_webhook(name=self.bot.user.name)
             messages = await channel.history(limit=msg_limit, before=ctx.message).flatten()

@@ -14,6 +14,8 @@ class PersonalQuotes(commands.Cog):
 
     @commands.command()
     async def personal(self, ctx, quote_id: int):
+        if (perms := ctx.guild.me.permissions_in(ctx.channel)).manage_messages and (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0]:
+            await ctx.message.delete()
         if fetch_quote := await (await self.bot.db.execute("SELECT * FROM personal_quote WHERE id = ?", (quote_id,))).fetchone():
             await ctx.send(embed=await self.personal_embed(ctx.guild, ctx.author, fetch_quote[2]))
         else:
