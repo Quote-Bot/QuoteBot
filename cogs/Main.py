@@ -117,16 +117,16 @@ class Main(commands.Cog):
         else:
             await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_nomessage')}")
 
-    @commands.command()
-    @commands.has_permissions(manage_guild=True)
+    @commands.command(aliases=['togglereact', 'reactions'])
+    @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
     async def togglereaction(self, ctx):
         new = int(not (await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
         await self.bot.db.execute("UPDATE guild SET on_reaction = ? WHERE id = ?", (new, ctx.guild.id))
         await self.bot.db.commit()
         await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_enabled' if new else 'MAIN_togglereaction_disabled')}")
 
-    @commands.command()
-    @commands.has_permissions(manage_guild=True)
+    @commands.command(aliases=['links'])
+    @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
     async def togglelinks(self, ctx):
         new = int(not (await (await self.bot.db.execute("SELECT quote_links FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
         await self.bot.db.execute("UPDATE guild SET quote_links = ? WHERE id = ?", (new, ctx.guild.id))
@@ -134,7 +134,7 @@ class Main(commands.Cog):
         await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglelinks_enabled' if new else 'MAIN_togglelinks_disabled')}")
 
     @commands.command()
-    @commands.has_permissions(manage_messages=True)
+    @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
     async def clone(self, ctx, msg_limit: int, channel: discord.TextChannel):
         if not ctx.guild.me.permissions_in(ctx.channel).manage_webhooks:
             await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nowebhook')}")
