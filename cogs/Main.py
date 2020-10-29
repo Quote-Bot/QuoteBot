@@ -1,10 +1,22 @@
-import re
-import aiohttp
 import asyncio
+import re
 
+import aiohttp
 import discord
+from aiosqlite import connect
 from discord.ext import commands
 
+MARKDOWN = re.compile((r"```.*?```"                      # ```multiline code```
+                       r"|`.*?`"                         # `inline code`
+                       r"|^>\s.*?$"                      # > quote
+                       r"|\*\*\*(?!\s).*?(?<!\s)\*\*\*"  # ***bold italics***
+                       r"|\*\*(?!\s).*?(?<!\s)\*\*"      # **bold**
+                       r"|\*(?!\s).*?(?<!\s)\*"          # *italics*
+                       r"|__.*?__"                       # __underline__
+                       r"|~~.*?~~"                       # ~~strikethrough~~
+                       r"|\|\|.*?\|\|"                   # ||spoiler||
+                       r"|<https?://\S*?>"),             # <surpressed links>
+                      re.DOTALL | re.MULTILINE)
 MESSAGE_URL = re.compile(r"https?://((canary|ptb|www)\.)?discord(app)?\.com/channels/"
                          r"(?P<guild_id>\d+)/(?P<channel_id>\d+)/"
                          r"(?P<msg_id>\d+)")
@@ -14,17 +26,27 @@ class Main(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def quote_embed(self, msg, guild, channel, user):
+    async def get_message_from_url(self, url_match: re.Match):
+        guild_id, channel_id, msg_id = map(int, url_match.groups()[-3:])
+        if (guild := self.bot.get_guild(guild_id)) and (channel := guild.get_channel(channel_id)):
+            if (perms := guild.me.permissions_in(channel)).read_messages and perms.read_message_history:
+                return discord.utils.get(self.bot.cached_messages, channel__id=channel_id, id=msg_id) or await channel.fetch_message(msg_id)
+            else:
+                raise discord.Forbidden(None, 'Lacking required permissions to fetch the message.')
+
+    async def quote_embed(self, msg, channel, user):
         embed = discord.Embed(description=msg.content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
         embed.set_author(name=str(msg.author), icon_url=msg.author.avatar_url)
         if msg.attachments:
             if msg.channel.is_nsfw() and not channel.is_nsfw():
-                embed.add_field(name=f"{await self.bot.localize(guild, 'MAIN_quote_attachments')}", value=f":underage: {await self.bot.localize(guild, 'MAIN_quote_nonsfw')}")
+                embed.add_field(name=f"{await self.bot.localize(channel.guild, 'MAIN_quote_attachments')}",
+                                value=f":underage: {await self.bot.localize(channel.guild, 'MAIN_quote_nonsfw')}")
             elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.gifv', '.webp', '.bmp')):
                 embed.set_image(url=url)
             else:
-                embed.add_field(name=f"{await self.bot.localize(guild, 'MAIN_quote_attachments')}", value='\n'.join(f'[{attachment.filename}]({attachment.url})' for attachment in msg.attachments))
-        footer_text = await self.bot.localize(guild, 'MAIN_quote_embedfooter')
+                embed.add_field(name=f"{await self.bot.localize(channel.guild, 'MAIN_quote_attachments')}",
+                                value='\n'.join(f'[{attachment.filename}]({attachment.url})' for attachment in msg.attachments))
+        footer_text = await self.bot.localize(channel.guild, 'MAIN_quote_embedfooter')
         embed.set_footer(text=footer_text.format(str(user), msg.channel.name))
         return embed
 
@@ -35,6 +57,20 @@ class Main(commands.Cog):
             await self.bot.db.commit()
         except Exception:
             pass
+
+    @commands.Cog.listener()
+    async def on_message(self, msg):
+        if msg.author.bot or not msg.guild:
+            return
+        async with connect('configs/QuoteBot.db') as db:
+            async with db.execute("SELECT quote_links FROM guild WHERE id = ?", (msg.guild.id,)) as cursor:
+                if not (await cursor.fetchone())[0]:
+                    return
+        if msg_url := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
+            try:
+                return await msg.channel.send(embed=await self.quote_embed(await self.get_message_from_url(msg_url), msg.channel, msg.author))
+            except (discord.NotFound, discord.Forbidden):
+                pass
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -62,17 +98,12 @@ class Main(commands.Cog):
             msg_id = int(query)
         except ValueError:
             if match := MESSAGE_URL.match(query.strip()):
-                guild_id, channel_id, msg_id = map(int, match.groups()[-3:])
-                if (guild := self.bot.get_guild(guild_id)) and (channel := guild.get_channel(channel_id)):
-                    perms = guild.me.permissions_in(channel)
-                    if perms.read_messages and perms.read_message_history:
-                        if not (msg := discord.utils.get(self.bot.cached_messages, channel__id=channel_id, id=msg_id)):
-                            try:
-                                msg = await channel.fetch_message(msg_id)
-                            except discord.NotFound:
-                                pass
-                    else:
-                        return await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_noperms')}")
+                try:
+                    msg = await self.get_message_from_url(match)
+                except discord.Forbidden:
+                    return await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_noperms')}")
+                except discord.NotFound:
+                    pass
             else:
                 return await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_inputerror')}")
         else:
@@ -90,22 +121,25 @@ class Main(commands.Cog):
                             else:
                                 break
         if msg:
-            await ctx.send(embed=await self.quote_embed(msg, ctx.guild, ctx.channel, ctx.author))
+            await ctx.send(embed=await self.quote_embed(msg, ctx.channel, ctx.author))
         else:
             await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_nomessage')}")
 
     @commands.command()
     @commands.has_permissions(manage_guild=True)
     async def togglereaction(self, ctx):
-        toggle = await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (str(ctx.guild.id),))).fetchone()
-        if toggle[0] == 0:
-            await self.bot.db.execute("UPDATE guild SET on_reaction = 1 WHERE id = ?", (str(ctx.guild.id),))
-            await self.bot.db.commit()
-            await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_enabled')}")
-        else:
-            await self.bot.db.execute("UPDATE guild SET on_reaction = 0 WHERE id = ?", (str(ctx.guild.id),))
-            await self.bot.db.commit()
-            await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_disabled')}")
+        new = int(not (await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
+        await self.bot.db.execute("UPDATE guild SET on_reaction = ? WHERE id = ?", (new, ctx.guild.id))
+        await self.bot.db.commit()
+        await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_enabled' if new else 'MAIN_togglereaction_disabled')}")
+
+    @commands.command()
+    @commands.has_permissions(manage_guild=True)
+    async def togglelinks(self, ctx):
+        new = int(not (await (await self.bot.db.execute("SELECT quote_links FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
+        await self.bot.db.execute("UPDATE guild SET quote_links = ? WHERE id = ?", (new, ctx.guild.id))
+        await self.bot.db.commit()
+        await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglelinks_enabled' if new else 'MAIN_togglelinks_disabled')}")
 
     @commands.command()
     @commands.has_permissions(manage_messages=True)

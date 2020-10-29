@@ -106,18 +106,21 @@ class QuoteBot(commands.AutoShardedBot):
                 continue
 
         await self.db.commit()
+        print("QuoteBot is ready.")
 
-    async def on_message(self, message):
-        if not message.author.bot:
-            await self.process_commands(message)
+    async def on_message(self, msg):
+        if not msg.author.bot:
+            await self.process_commands(msg)
 
     async def close(self):
+        print("QuoteBot closed.")
         if db := getattr(self, 'db', False):
             await db.close()
         return await super().close()
 
 
 if __name__ == '__main__':
+    print("Starting QuoteBot...")
     with open(os.path.join('configs', 'credentials.json')) as json_data:
         config = json.load(json_data)
         bot = QuoteBot(config)
