@@ -34,7 +34,9 @@ class Main(commands.Cog):
             else:
                 raise discord.Forbidden(None, 'Lacking required permissions to fetch the message.')
 
-    async def quote_embed(self, msg, channel, user, linked=False):
+    async def quote_message(self, msg, channel, user, linked=False):
+        if not msg.content and msg.embeds:
+            return await channel.send((await self.bot.localize(channel.guild, 'MAIN_quote_rawembed')).format(msg.author, msg.channel.mention), embed=msg.embeds[0])
         embed = discord.Embed(description=msg.content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
         embed.set_author(name=str(msg.author), icon_url=msg.author.avatar_url)
         if msg.attachments:
@@ -47,7 +49,7 @@ class Main(commands.Cog):
                 embed.add_field(name=f"{await self.bot.localize(channel.guild, 'MAIN_quote_attachments')}",
                                 value='\n'.join(f'[{attachment.filename}]({attachment.url})' for attachment in msg.attachments))
         embed.set_footer(text=(await self.bot.localize(channel.guild, 'MAIN_quote_linkfooter' if linked else 'MAIN_quote_embedfooter')).format(user, msg.channel.name))
-        return embed
+        await channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, msg):
@@ -59,7 +61,7 @@ class Main(commands.Cog):
                     return
         if msg_url := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
             try:
-                return await msg.channel.send(embed=await self.quote_embed(await self.get_message_from_url(msg_url), msg.channel, msg.author, True))
+                return await self.quote_message(await self.get_message_from_url(msg_url), msg.channel, msg.author, True)
             except (discord.NotFound, discord.Forbidden):
                 pass
 
@@ -74,7 +76,7 @@ class Main(commands.Cog):
             if payload.member.permissions_in(channel).send_messages and perms.read_message_history and perms.send_messages and perms.embed_links:
                 if not (msg := discord.utils.get(self.bot.cached_messages, channel=channel, id=payload.message_id)):
                     msg = await channel.fetch_message(payload.message_id)
-                await channel.send(embed=await self.quote_embed(msg, channel, payload.member))
+                await self.quote_message(msg, channel, payload.member)
 
     @commands.command(aliases=['q'])
     async def quote(self, ctx, query: str):
@@ -112,7 +114,7 @@ class Main(commands.Cog):
                             else:
                                 break
         if msg:
-            await ctx.send(embed=await self.quote_embed(msg, ctx.channel, ctx.author))
+            await self.quote_message(msg, ctx.channel, ctx.author)
         else:
             await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_nomessage')}")
 
