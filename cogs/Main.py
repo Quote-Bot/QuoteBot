@@ -34,20 +34,19 @@ class Main(commands.Cog):
             if msg := await user.fetch_message(msg_id):
                 return msg
             return await (user.dm_channel or await user.create_dm()).fetch_message(msg_id)
-        if (guild := self.bot.get_guild(int(url_match['guild_id']))) and (channel := guild.get_channel(channel_id)):
-            if not (perms := guild.me.permissions_in(channel)).read_messages and perms.read_message_history:
-                raise discord.Forbidden(None, 'Lacking required permissions to fetch the message.')
+        if guild := self.bot.get_guild(int(url_match['guild_id'])):
+            channel = guild.get_channel(channel_id)
         else:
             channel = self.bot.get_channel(channel_id)
         if not channel:
-            raise discord.NotFound(None, 'Channel not found.')
+            return None
         return await channel.fetch_message(msg_id)
 
     async def quote_message(self, msg, channel, user, type='quote'):
         guild = getattr(channel, 'guild', None)
         if not msg.content and msg.embeds:
             return await channel.send((await self.bot.localize(guild, f'MAIN_{type}_rawembed')).format(user, msg.author, (self.bot.user if isinstance(msg.channel, discord.DMChannel) else msg.channel).mention), embed=msg.embeds[0])
-        embed = discord.Embed(description=msg.content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
+        embed = discord.Embed(description=msg.content if msg.guild == guild else msg.clean_content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
         embed.set_author(name=str(msg.author), icon_url=msg.author.avatar_url)
         if msg.attachments:
             if not isinstance(msg.channel, discord.DMChannel) and msg.channel.is_nsfw() and (isinstance(channel, discord.DMChannel) or not channel.is_nsfw()):
@@ -71,7 +70,8 @@ class Main(commands.Cog):
                     return
         if msg_url := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
             try:
-                return await self.quote_message(await self.get_message_from_url(msg_url, msg.author), msg.channel, msg.author, 'link')
+                if quoted_msg := await self.get_message_from_url(msg_url, msg.author):
+                    return await self.quote_message(quoted_msg, msg.channel, msg.author, 'link')
             except (discord.NotFound, discord.Forbidden):
                 pass
 
