@@ -23,7 +23,7 @@
     "MAIN_quote_nonsfw": "**Wiadomość zacytowana z kanału NSFW.**",
     "MAIN_quote_noperms": "**Nie posiadam uprawnień, aby wydobyć wiadomości z tego kanału.**",
     "MAIN_quote_inputerror": "**Proszę podać poprawny ID wiadomości lub URL.**",
-    "MAIN_quote_embedfooter": "Zacytowane przez {0} z #{1}",
+    "MAIN_quote_embedfooter": "Zacytowane przez {0} z {1}",
     "MAIN_togglereaction_enabled": "**Cytowanie na reakcję aktywne.**",
     "MAIN_togglereaction_disabled": "**Cytowanie na reakcję nieaktywne.**",
     "MAIN_clone_msglimit": "**Możesz sklonować tylko do 50 wiadomości.**",

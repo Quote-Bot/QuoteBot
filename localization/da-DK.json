@@ -6,7 +6,7 @@
     "MAIN_quote_nonsfw": "**Beskeden citeret fra en NSFW kanal.**",
     "MAIN_quote_noperms": "**Jeg har ikke adgang til at hente beskeder fra den kanal.**",
     "MAIN_quote_inputerror": "**Specificier en gyldig besked ID eller URL.**",
-    "MAIN_quote_embedfooter": "Citeret af {0} fra #{1}",
+    "MAIN_quote_embedfooter": "Citeret af {0} fra {1}",
     "MAIN_togglereaction_enabled": "**Reaktion citering aktiveret.**",
     "MAIN_togglereaction_disabled": "**Reaktion citering deaktiveret.**",
     "PERSONAL_personal_notfound": "**Ugyldig ID.**",

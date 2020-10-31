@@ -24,7 +24,7 @@
     "MAIN_quote_nonsfw": "**Mensaje citado de un canal NSFW.**",
     "MAIN_quote_noperms": "**No tengo permisos para extraer mensajes de ese canal.**",
     "MAIN_quote_inputerror": "**Por favor especifica una ID o URL de mensaje válida.**",
-    "MAIN_quote_embedfooter": "Citado por {0} de #{1}",
+    "MAIN_quote_embedfooter": "Citado por {0} de {1}",
     "MAIN_togglelinks_enabled": "**Citado de mensajes enlazados ha sido activado.**",
     "MAIN_togglelinks_disabled": "**Citado de mensajes enlazados ha sido desactivado.**",
     "MAIN_togglereaction_enabled": "**Citado por reacciones ha sido activado.**",

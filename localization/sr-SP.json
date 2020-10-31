@@ -6,7 +6,7 @@
     "MAIN_quote_nonsfw": "**Порука цитирана из НСФВ канала.**",
     "MAIN_quote_noperms": "**Немам дозволу да читам поруке из тог канала.**",
     "MAIN_quote_inputerror": "**Спецификујте вредни ИД или УРЛ поруке.**",
-    "MAIN_quote_embedfooter": "Цитирано од {0} из #{1}",
+    "MAIN_quote_embedfooter": "Цитирано од {0} из {1}",
     "MAIN_togglereaction_enabled": "**Цитиранје реакцијом је уклјучено.**",
     "MAIN_togglereaction_disabled": "**Цитиранје реакцијом је исклјучено.**",
     "PERSONAL_personal_notfound": "**Неважећи ИД.**",
