@@ -20,6 +20,8 @@
     "HELP_toggledelete": "Schakel het verwijderen van citeer commando berichten in de server aan of uit. Vereist de 'Server beheren' machtiging.",
     "HELP_togglelinks": "Schakel het citeren van gelinkte berichten in de server aan of uit. Vereist de 'Server beheren' machtiging.",
     "HELP_togglereaction": "Schakel citeren via het toevoegen van :speech_balloon: reacties aan berichten in de server aan of uit. Vereist de 'Server beheren' machtiging.",
+    "HELP_snipe": "Snipe het laatst verwijderde bericht van een gespecificeerd kanaal of het huidige kanaal.",
+    "HELP_snipeedit": "Snipe het laatst bewerkte bericht van een gespecificeerd kanaal of het huidige kanaal.",
     "MAIN_quote_nomessage": "**Het bericht kon niet worden gevonden.**",
     "MAIN_quote_attachments": "Bijlage(n)",
     "MAIN_quote_nonsfw": "**Bericht geciteerd uit een NSFW kanaal.**",

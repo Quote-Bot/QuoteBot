@@ -20,6 +20,8 @@
     "HELP_toggledelete": "Toggle deleting quote command messages in the server. Requires the 'Manage Server' permission.",
     "HELP_togglelinks": "Toggle quoting linked messages in the server. Requires the 'Manage Server' permission.",
     "HELP_togglereaction": "Toggle quoting by adding :speech_balloon: reactions to messages in the server. Requires the 'Manage Server' permission.",
+    "HELP_snipe": "Snipe the last deleted message from a specified channel or the current channel.",
+    "HELP_snipeedit": "Snipe the last edited message from a specified channel or the current channel.",
     "MAIN_quote_nomessage": "**Couldn't find the message.**",
     "MAIN_quote_attachments": "Attachment(s)",
     "MAIN_quote_nonsfw": "**Message quoted from a NSFW channel.**",

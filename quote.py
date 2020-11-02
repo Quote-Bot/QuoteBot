@@ -105,6 +105,24 @@ class QuoteBot(commands.AutoShardedBot):
                VALUES (?, ?, ?)""",
             (guild.id, self.config['default_prefix'], self.config['default_lang']))
 
+    async def quote_message(self, msg, channel, user, type='quote'):
+        guild = getattr(channel, 'guild', None)
+        if not msg.content and msg.embeds:
+            return await channel.send((await self.localize(guild, f'MAIN_{type}_rawembed')).format(user, msg.author, (self.user if isinstance(msg.channel, discord.DMChannel) else msg.channel).mention), embed=msg.embeds[0])
+        embed = discord.Embed(description=msg.content if msg.guild == guild else msg.clean_content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
+        embed.set_author(name=str(msg.author), url=msg.jump_url, icon_url=msg.author.avatar_url)
+        if msg.attachments:
+            if not isinstance(msg.channel, discord.DMChannel) and msg.channel.is_nsfw() and (isinstance(channel, discord.DMChannel) or not channel.is_nsfw()):
+                embed.add_field(name=f"{await self.localize(guild, 'MAIN_quote_attachments')}",
+                                value=f":underage: {await self.localize(guild, 'MAIN_quote_nonsfw')}")
+            elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.gifv', '.webp', '.bmp')):
+                embed.set_image(url=url)
+            else:
+                embed.add_field(name=f"{await self.localize(guild, 'MAIN_quote_attachments')}",
+                                value='\n'.join(f'[{attachment.filename}]({attachment.url})' for attachment in msg.attachments))
+        embed.set_footer(text=(await self.localize(guild, f'MAIN_{type}_embedfooter')).format(user, self.user if isinstance(msg.channel, discord.DMChannel) else f'#{msg.channel.name}'))
+        await channel.send(embed=embed)
+
     async def on_ready(self):
         await self._update_presence()
         self.db = await DBService.create(self.config)
@@ -146,7 +164,7 @@ if __name__ == '__main__':
         config = json.load(json_data)
         bot = QuoteBot(config)
 
-    extensions = ['cogs.Main', 'cogs.PersonalQuotes', 'cogs.OwnerOnly']
+    extensions = ['cogs.Main', 'cogs.OwnerOnly', 'cogs.PersonalQuotes', 'cogs.Snipe']
 
     for extension in extensions:
         bot.load_extension(extension)

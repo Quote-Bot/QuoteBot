@@ -12,14 +12,14 @@ class PersonalQuotes(commands.Cog):
         embed.set_footer(text=f"{await self.bot.localize(guild, 'PERSONAL_personal_embedfooter')}")
         return embed
 
-    @commands.command()
-    async def personal(self, ctx, quote_id: int):
-        if (perms := ctx.guild.me.permissions_in(ctx.channel)).manage_messages and (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0]:
+    @commands.command(aliases=['personal', 'pquote', 'pq'])
+    async def personalquote(self, ctx, quote_id: int):
+        if (guild := ctx.guild) and guild.me.permissions_in(ctx.channel).manage_messages and (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]:
             await ctx.message.delete()
-        if fetch_quote := await (await self.bot.db.execute("SELECT * FROM personal_quote WHERE id = ?", (quote_id,))).fetchone():
-            await ctx.send(embed=await self.personal_embed(ctx.guild, ctx.author, fetch_quote[2]))
+        if fetch_quote := await (await self.bot.db.execute("SELECT response FROM personal_quote WHERE id = ?", (quote_id,))).fetchone():
+            await ctx.send(embed=await self.personal_embed(guild, ctx.author, fetch_quote[0]))
         else:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personal_notfound')}")
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'PERSONAL_personal_notfound')}")
 
     @commands.command(aliases=['plist'])
     async def personallist(self, ctx, page: int = 1):
