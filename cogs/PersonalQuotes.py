@@ -9,7 +9,7 @@ class PersonalQuotes(commands.Cog):
     async def personal_embed(self, guild, user, response):
         embed = discord.Embed(description=response, color=user.color.value or discord.Embed.Empty)
         embed.set_author(name=str(user), icon_url=user.avatar_url)
-        embed.set_footer(text=f"{await self.bot.localize(guild, 'PERSONAL_personal_embedfooter')}")
+        embed.set_footer(text=f"{await self.bot.localize(guild, 'PERSONAL_personalquote_embedfooter')}")
         return embed
 
     @commands.command(aliases=['personal', 'pquote', 'pq'])
@@ -19,7 +19,7 @@ class PersonalQuotes(commands.Cog):
         if fetch_quote := await (await self.bot.db.execute("SELECT response FROM personal_quote WHERE id = ?", (quote_id,))).fetchone():
             await ctx.send(embed=await self.personal_embed(guild, ctx.author, fetch_quote[0]))
         else:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'PERSONAL_personal_notfound')}")
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'PERSONAL_personalquote_notfound')}")
 
     @commands.command(aliases=['plist'])
     async def personallist(self, ctx, page: int = 1):
@@ -48,7 +48,7 @@ class PersonalQuotes(commands.Cog):
             await self.bot.db.commit()
             await ctx.send(content=f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'PERSONAL_personalremove_removed')}")
         else:
-            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personal_notfound')}")
+            await ctx.send(content=f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'PERSONAL_personalquote_notfound')}")
 
     @commands.command(aliases=['pclear'])
     async def personalclear(self, ctx):
