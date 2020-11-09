@@ -3,7 +3,6 @@ import re
 
 import aiohttp
 import discord
-from aiosqlite import connect
 from discord.ext import commands
 
 MARKDOWN = re.compile((r"```.*?```"                      # ```multiline code```
@@ -44,12 +43,9 @@ class Main(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, msg):
-        if msg.author.bot or not msg.guild or (await self.bot.get_context(msg)).valid:
+        if (msg.author.bot or not msg.guild or (await self.bot.get_context(msg)).valid
+                or (await self.bot.fetch("SELECT quote_links FROM guild WHERE id = ?", True, (msg.guild.id,)))[0]):
             return
-        async with connect('configs/QuoteBot.db') as db:
-            async with db.execute("SELECT quote_links FROM guild WHERE id = ?", (msg.guild.id,)) as cursor:
-                if not (await cursor.fetchone())[0]:
-                    return
         if msg_url := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
             try:
                 if quoted_msg := await self.get_message_from_url(msg_url, msg.author):
@@ -59,21 +55,20 @@ class Main(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        if payload.emoji.name != '💬':
+        if payload.emoji.name != '💬' or not (await self.bot.fetch("SELECT on_reaction FROM guild WHERE id = ?", True, (payload.guild_id,)))[0]:
             return
-        if (await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (payload.guild_id,))).fetchone())[0]:
-            guild = self.bot.get_guild(payload.guild_id)
-            channel = guild.get_channel(payload.channel_id)
-            perms = guild.me.permissions_in(channel)
-            if payload.member.permissions_in(channel).send_messages and perms.read_message_history and perms.send_messages and perms.embed_links:
-                if not (msg := discord.utils.get(self.bot.cached_messages, channel=channel, id=payload.message_id)):
-                    msg = await channel.fetch_message(payload.message_id)
-                await self.bot.quote_message(msg, channel, payload.member)
+        guild = self.bot.get_guild(payload.guild_id)
+        channel = guild.get_channel(payload.channel_id)
+        perms = guild.me.permissions_in(channel)
+        if payload.member.permissions_in(channel).send_messages and perms.read_message_history and perms.send_messages and perms.embed_links:
+            if not (msg := discord.utils.get(self.bot.cached_messages, channel=channel, id=payload.message_id)):
+                msg = await channel.fetch_message(payload.message_id)
+            await self.bot.quote_message(msg, channel, payload.member)
 
     @commands.command(aliases=['q'])
     async def quote(self, ctx, query: str):
         if guild := ctx.guild:
-            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]:
+            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", True, (guild.id,)))[0]:
                 await ctx.message.delete()
             if not perms.send_messages:
                 return
@@ -116,29 +111,32 @@ class Main(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def togglereaction(self, ctx):
-        new = int(not (await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
-        await self.bot.db.execute("UPDATE guild SET on_reaction = ? WHERE id = ?", (new, ctx.guild.id))
-        await self.bot.db.commit()
+        async with self.bot.db_connect() as db:
+            new = int(not (await (await db.execute("SELECT on_reaction FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
+            await db.execute("UPDATE guild SET on_reaction = ? WHERE id = ?", (new, ctx.guild.id))
+            await db.commit()
         await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglereaction_enabled' if new else 'MAIN_togglereaction_disabled')}")
 
     @commands.command(aliases=['links'])
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def togglelinks(self, ctx):
-        new = int(not (await (await self.bot.db.execute("SELECT quote_links FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
-        await self.bot.db.execute("UPDATE guild SET quote_links = ? WHERE id = ?", (new, ctx.guild.id))
-        await self.bot.db.commit()
+        async with self.bot.db_connect() as db:
+            new = int(not (await (await db.execute("SELECT quote_links FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
+            await db.execute("UPDATE guild SET quote_links = ? WHERE id = ?", (new, ctx.guild.id))
+            await db.commit()
         await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_togglelinks_enabled' if new else 'MAIN_togglelinks_disabled')}")
 
     @commands.command(aliases=['delcommands', 'delete'])
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def toggledelete(self, ctx):
-        new = int(not (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
-        if new and not ctx.me.permissions_in(ctx.channel).manage_messages:
-            return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nomanagemessages')}")
-        await self.bot.db.execute("UPDATE guild SET delete_commands = ? WHERE id = ?", (new, ctx.guild.id))
-        await self.bot.db.commit()
+        async with self.bot.db_connect() as db:
+            new = int(not (await (await db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
+            if new and not ctx.me.permissions_in(ctx.channel).manage_messages:
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nomanagemessages')}")
+            await db.execute("UPDATE guild SET delete_commands = ? WHERE id = ?", (new, ctx.guild.id))
+            await db.commit()
         await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_toggledelete_enabled' if new else 'MAIN_toggledelete_disabled')}")
 
     @commands.command()

@@ -43,7 +43,7 @@ class Snipe(commands.Cog):
             return
 
         if guild := ctx.guild:
-            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]:
+            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", True, (guild.id,)))[0]:
                 await ctx.message.delete()
             if not perms.send_messages:
                 return
