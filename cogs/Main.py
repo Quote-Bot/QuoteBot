@@ -16,42 +16,75 @@ MARKDOWN = re.compile((r"```.*?```"                      # ```multiline code```
                        r"|\|\|.*?\|\|"                   # ||spoiler||
                        r"|<https?://\S*?>"),             # <suppressed links>
                       re.DOTALL | re.MULTILINE)
-MESSAGE_URL = re.compile(r"https?://((canary|ptb|www)\.)?discord(app)?\.com/channels/"
-                         r"(?P<guild_id>\d+|@me)/(?P<channel_id>\d+)/"
-                         r"(?P<msg_id>\d+)")
+MESSAGE_ID = re.compile(r'(?:(?P<channel_id>[0-9]{15,21})(?:-|/|\s))?(?P<message_id>[0-9]{15,21})$')
+MESSAGE_URL = re.compile(r'https?://(?:(canary|ptb|www)\.)?discord(?:app)?\.com/channels/'
+                         r'(?:(?P<guild_id>[0-9]{15,21})|(?P<dm>@me))/(?P<channel_id>[0-9]{15,21})/'
+                         r'(?P<message_id>[0-9]{15,21})/?(?:$|\s)')
 
 
 class Main(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def get_message_from_url(self, url_match: re.Match, user: discord.User):
-        channel_id, msg_id = map(int, url_match.groups()[-2:])
-        if msg := discord.utils.get(self.bot.cached_messages, channel__id=channel_id, id=msg_id):
-            return msg
-        if url_match['guild_id'] == '@me':
-            if msg := await user.fetch_message(msg_id):
+    async def get_message(self, ctx, group_dict):
+        msg_id = int(group_dict['message_id'])
+        if group_dict.get('dm'):
+            return discord.utils.get(self.bot.cached_messages,
+                                     channel=(channel := await ctx.author.create_dm()),
+                                     id=msg_id) or await channel.fetch_message(msg_id)
+        if channel_id := group_dict.get('channel_id'):
+            channel_id = int(channel_id)
+            if msg := discord.utils.get(self.bot.cached_messages, channel__id=channel_id, id=msg_id):
                 return msg
-            return await (user.dm_channel or await user.create_dm()).fetch_message(msg_id)
-        if guild := self.bot.get_guild(int(url_match['guild_id'])):
-            channel = guild.get_channel(channel_id)
-        else:
-            channel = self.bot.get_channel(channel_id)
-        if not channel:
-            return None
-        return await channel.fetch_message(msg_id)
+
+            if guild_id := group_dict.get('guild_id'):
+                guild_id = int(guild_id)
+                if msg := discord.utils.get(self.bot.cached_messages, guild__id=guild_id, id=msg_id):
+                    return msg
+                if guild := self.bot.get_guild(guild_id):
+                    if channel := guild.get_channel(channel_id):
+                        if msg := await channel.fetch_message(msg_id):
+                            return msg
+                        raise commands.MessageNotFound(msg_id)
+                raise commands.ChannelNotFound(channel_id)
+
+            if channel := self.bot.get_channel(channel_id):
+                if msg := await channel.fetch_message(msg_id):
+                    return msg
+                raise commands.MessageNotFound(msg_id)
+            raise commands.ChannelNotFound(channel_id)
+
+        try:
+            return discord.utils.get(self.bot.cached_messages,
+                                     channel=ctx.channel,
+                                     id=msg_id) or await ctx.channel.fetch_message(msg_id)
+        except (discord.NotFound, discord.Forbidden):
+            if guild := ctx.guild:
+                for channel in guild.text_channels:
+                    if channel == ctx.channel:
+                        continue
+                    try:
+                        return await channel.fetch_message(msg_id)
+                    except (discord.NotFound, discord.Forbidden):
+                        continue
+            try:
+                return await ctx.author.fetch_message(msg_id)
+            except (discord.NotFound, discord.Forbidden):
+                if msg := self.bot._connection._get_message(msg_id) or discord.utils.get(self.bot.cached_messages, id=msg_id):
+                    return msg
+            raise
 
     @commands.Cog.listener()
     async def on_message(self, msg):
-        if (msg.author.bot or not msg.guild or (await self.bot.get_context(msg)).valid
+        if ((ctx := await self.bot.get_context(msg)).valid or msg.author.bot or not msg.guild
                 or (await self.bot.fetch("SELECT quote_links FROM guild WHERE id = ?", True, (msg.guild.id,)))[0]):
             return
-        if msg_url := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
+        if match := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
             try:
-                if quoted_msg := await self.get_message_from_url(msg_url, msg.author):
-                    return await self.bot.quote_message(quoted_msg, msg.channel, msg.author, 'link')
-            except (discord.NotFound, discord.Forbidden):
-                pass
+                quoted_msg = await self.get_message(ctx, match.groupdict())
+            except Exception:
+                return
+            return await self.bot.quote_message(quoted_msg, msg.channel, msg.author, 'link')
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -74,38 +107,16 @@ class Main(commands.Cog):
                 return
             elif not perms.embed_links:
                 return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'META_perms_noembed')}")
-        msg = None
-        try:
-            msg_id = int(query)
-        except ValueError:
-            if match := MESSAGE_URL.match(query.strip()):
-                try:
-                    msg = await self.get_message_from_url(match, ctx.author)
-                except discord.Forbidden:
-                    return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_noperms')}")
-                except discord.NotFound:
-                    pass
+        if match := MESSAGE_ID.match(query) or MESSAGE_URL.match(query):
+            try:
+                msg = await self.get_message(ctx, match.groupdict())
+            except discord.Forbidden:
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_noperms')}")
+            except Exception:
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
             else:
-                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_inputerror')}")
-        else:
-            if not (msg := discord.utils.get(self.bot.cached_messages, channel=ctx.channel, id=msg_id)) or (msg := discord.utils.get(self.bot.cached_messages, guild=guild, id=msg_id)):
-                try:
-                    msg = await ctx.channel.fetch_message(msg_id)
-                except (discord.NotFound, discord.Forbidden):
-                    if guild:
-                        for channel in guild.text_channels:
-                            perms = guild.me.permissions_in(channel)
-                            if perms.read_messages and perms.read_message_history and channel != ctx.channel:
-                                try:
-                                    msg = await channel.fetch_message(msg_id)
-                                except discord.NotFound:
-                                    continue
-                                else:
-                                    break
-        if msg:
-            await self.bot.quote_message(msg, ctx.channel, ctx.author)
-        else:
-            await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
+                return await self.bot.quote_message(msg, ctx.channel, ctx.author)
+        return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_inputerror')}")
 
     @commands.command(aliases=['togglereactions', 'togglereact', 'reactions'])
     @commands.guild_only()
