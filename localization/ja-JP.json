@@ -6,7 +6,7 @@
     "MAIN_quote_nonsfw": "**NSFWチャンネルからメッセージを引用された。**",
     "MAIN_quote_noperms": "**そのチャンネルからメッセージを読みする許可がありません。**",
     "MAIN_quote_inputerror": "**有効なメッセージIDまたはURLを特定してください。**",
-    "MAIN_quote_embedfooter": "{0}から#{1}引用した。",
+    "MAIN_quote_embedfooter": "{0}から{1}引用した。",
     "MAIN_togglereaction_enabled": "**リアクション引用を可能にされた。**",
     "MAIN_togglereaction_disabled": "**リアクション引用を無効にされた。**",
     "PERSONAL_personal_notfound": "**無効なID。**",

@@ -18,7 +18,7 @@ MARKDOWN = re.compile((r"```.*?```"                      # ```multiline code```
                        r"|<https?://\S*?>"),             # <suppressed links>
                       re.DOTALL | re.MULTILINE)
 MESSAGE_URL = re.compile(r"https?://((canary|ptb|www)\.)?discord(app)?\.com/channels/"
-                         r"(?P<guild_id>\d+)/(?P<channel_id>\d+)/"
+                         r"(?P<guild_id>\d+|@me)/(?P<channel_id>\d+)/"
                          r"(?P<msg_id>\d+)")
 
 
@@ -26,28 +26,39 @@ class Main(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def get_message_from_url(self, url_match: re.Match):
-        guild_id, channel_id, msg_id = map(int, url_match.groups()[-3:])
-        if (guild := self.bot.get_guild(guild_id)) and (channel := guild.get_channel(channel_id)):
-            if (perms := guild.me.permissions_in(channel)).read_messages and perms.read_message_history:
-                return discord.utils.get(self.bot.cached_messages, channel__id=channel_id, id=msg_id) or await channel.fetch_message(msg_id)
-            else:
-                raise discord.Forbidden(None, 'Lacking required permissions to fetch the message.')
+    async def get_message_from_url(self, url_match: re.Match, user: discord.User):
+        channel_id, msg_id = map(int, url_match.groups()[-2:])
+        if msg := discord.utils.get(self.bot.cached_messages, channel__id=channel_id, id=msg_id):
+            return msg
+        if url_match['guild_id'] == '@me':
+            if msg := await user.fetch_message(msg_id):
+                return msg
+            return await (user.dm_channel or await user.create_dm()).fetch_message(msg_id)
+        if guild := self.bot.get_guild(int(url_match['guild_id'])):
+            channel = guild.get_channel(channel_id)
+        else:
+            channel = self.bot.get_channel(channel_id)
+        if not channel:
+            return None
+        return await channel.fetch_message(msg_id)
 
-    async def quote_embed(self, msg, channel, user, linked=False):
-        embed = discord.Embed(description=msg.content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
+    async def quote_message(self, msg, channel, user, type='quote'):
+        guild = getattr(channel, 'guild', None)
+        if not msg.content and msg.embeds:
+            return await channel.send((await self.bot.localize(guild, f'MAIN_{type}_rawembed')).format(user, msg.author, (self.bot.user if isinstance(msg.channel, discord.DMChannel) else msg.channel).mention), embed=msg.embeds[0])
+        embed = discord.Embed(description=msg.content if msg.guild == guild else msg.clean_content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
         embed.set_author(name=str(msg.author), icon_url=msg.author.avatar_url)
         if msg.attachments:
-            if msg.channel.is_nsfw() and not channel.is_nsfw():
-                embed.add_field(name=f"{await self.bot.localize(channel.guild, 'MAIN_quote_attachments')}",
-                                value=f":underage: {await self.bot.localize(channel.guild, 'MAIN_quote_nonsfw')}")
+            if not isinstance(msg.channel, discord.DMChannel) and msg.channel.is_nsfw() and (isinstance(channel, discord.DMChannel) or not channel.is_nsfw()):
+                embed.add_field(name=f"{await self.bot.localize(guild, 'MAIN_quote_attachments')}",
+                                value=f":underage: {await self.bot.localize(guild, 'MAIN_quote_nonsfw')}")
             elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.gifv', '.webp', '.bmp')):
                 embed.set_image(url=url)
             else:
-                embed.add_field(name=f"{await self.bot.localize(channel.guild, 'MAIN_quote_attachments')}",
+                embed.add_field(name=f"{await self.bot.localize(guild, 'MAIN_quote_attachments')}",
                                 value='\n'.join(f'[{attachment.filename}]({attachment.url})' for attachment in msg.attachments))
-        embed.set_footer(text=(await self.bot.localize(channel.guild, 'MAIN_quote_linkfooter' if linked else 'MAIN_quote_embedfooter')).format(user, msg.channel.name))
-        return embed
+        embed.set_footer(text=(await self.bot.localize(guild, f'MAIN_{type}_embedfooter')).format(user, self.bot.user if isinstance(msg.channel, discord.DMChannel) else f'#{msg.channel.name}'))
+        await channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, msg):
@@ -59,7 +70,8 @@ class Main(commands.Cog):
                     return
         if msg_url := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
             try:
-                return await msg.channel.send(embed=await self.quote_embed(await self.get_message_from_url(msg_url), msg.channel, msg.author, True))
+                if quoted_msg := await self.get_message_from_url(msg_url, msg.author):
+                    return await self.quote_message(quoted_msg, msg.channel, msg.author, 'link')
             except (discord.NotFound, discord.Forbidden):
                 pass
 
@@ -74,51 +86,53 @@ class Main(commands.Cog):
             if payload.member.permissions_in(channel).send_messages and perms.read_message_history and perms.send_messages and perms.embed_links:
                 if not (msg := discord.utils.get(self.bot.cached_messages, channel=channel, id=payload.message_id)):
                     msg = await channel.fetch_message(payload.message_id)
-                await channel.send(embed=await self.quote_embed(msg, channel, payload.member))
+                await self.quote_message(msg, channel, payload.member)
 
     @commands.command(aliases=['q'])
     async def quote(self, ctx, query: str):
-        if (perms := ctx.guild.me.permissions_in(ctx.channel)).manage_messages and (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0]:
-            await ctx.message.delete()
-        if not perms.send_messages:
-            return
-        elif not perms.embed_links:
-            return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_noembed')}")
+        if guild := ctx.guild:
+            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]:
+                await ctx.message.delete()
+            if not perms.send_messages:
+                return
+            elif not perms.embed_links:
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'META_perms_noembed')}")
         msg = None
         try:
             msg_id = int(query)
         except ValueError:
             if match := MESSAGE_URL.match(query.strip()):
                 try:
-                    msg = await self.get_message_from_url(match)
+                    msg = await self.get_message_from_url(match, ctx.author)
                 except discord.Forbidden:
-                    return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_noperms')}")
+                    return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_noperms')}")
                 except discord.NotFound:
                     pass
             else:
-                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_inputerror')}")
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_inputerror')}")
         else:
-            if not (msg := discord.utils.get(self.bot.cached_messages, channel=ctx.channel, id=msg_id)) or (msg := discord.utils.get(self.bot.cached_messages, guild=ctx.guild, id=msg_id)):
+            if not (msg := discord.utils.get(self.bot.cached_messages, channel=ctx.channel, id=msg_id)) or (msg := discord.utils.get(self.bot.cached_messages, guild=guild, id=msg_id)):
                 try:
                     msg = await ctx.channel.fetch_message(msg_id)
                 except (discord.NotFound, discord.Forbidden):
-                    for channel in ctx.guild.text_channels:
-                        perms = ctx.guild.me.permissions_in(channel)
-                        if perms.read_messages and perms.read_message_history and channel != ctx.channel:
-                            try:
-                                msg = await channel.fetch_message(msg_id)
-                            except discord.NotFound:
-                                continue
-                            else:
-                                break
+                    if guild:
+                        for channel in guild.text_channels:
+                            perms = guild.me.permissions_in(channel)
+                            if perms.read_messages and perms.read_message_history and channel != ctx.channel:
+                                try:
+                                    msg = await channel.fetch_message(msg_id)
+                                except discord.NotFound:
+                                    continue
+                                else:
+                                    break
         if msg:
-            await ctx.send(embed=await self.quote_embed(msg, ctx.channel, ctx.author))
+            await self.quote_message(msg, ctx.channel, ctx.author)
         else:
-            await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_quote_nomessage')}")
+            await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
 
     @commands.command(aliases=['togglereactions', 'togglereact', 'reactions'])
     @commands.guild_only()
-    @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
+    @commands.has_permissions(manage_guild=True)
     async def togglereaction(self, ctx):
         new = int(not (await (await self.bot.db.execute("SELECT on_reaction FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
         await self.bot.db.execute("UPDATE guild SET on_reaction = ? WHERE id = ?", (new, ctx.guild.id))
@@ -127,7 +141,7 @@ class Main(commands.Cog):
 
     @commands.command(aliases=['links'])
     @commands.guild_only()
-    @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
+    @commands.has_permissions(manage_guild=True)
     async def togglelinks(self, ctx):
         new = int(not (await (await self.bot.db.execute("SELECT quote_links FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
         await self.bot.db.execute("UPDATE guild SET quote_links = ? WHERE id = ?", (new, ctx.guild.id))
@@ -136,7 +150,7 @@ class Main(commands.Cog):
 
     @commands.command(aliases=['delcommands', 'delete'])
     @commands.guild_only()
-    @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
+    @commands.has_permissions(manage_guild=True)
     async def toggledelete(self, ctx):
         new = int(not (await (await self.bot.db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0])
         if new and not ctx.me.permissions_in(ctx.channel).manage_messages:
@@ -146,7 +160,7 @@ class Main(commands.Cog):
         await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_toggledelete_enabled' if new else 'MAIN_toggledelete_disabled')}")
 
     @commands.command()
-    @commands.check_any(commands.is_owner(), commands.has_permissions(manage_guild=True))
+    @commands.has_permissions(manage_guild=True)
     async def clone(self, ctx, msg_limit: int, channel: discord.TextChannel):
         if not ctx.guild.me.permissions_in(ctx.channel).manage_webhooks:
             await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nowebhook')}")
