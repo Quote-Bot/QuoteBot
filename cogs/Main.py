@@ -77,7 +77,7 @@ class Main(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, msg):
         if ((ctx := await self.bot.get_context(msg)).valid or msg.author.bot or not msg.guild
-                or (await self.bot.fetch("SELECT quote_links FROM guild WHERE id = ?", True, (msg.guild.id,)))[0]):
+                or not (await self.bot.fetch("SELECT quote_links FROM guild WHERE id = ?", True, (msg.guild.id,)))[0]):
             return
         if match := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
             try:
