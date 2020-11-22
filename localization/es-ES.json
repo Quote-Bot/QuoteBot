@@ -30,7 +30,7 @@
     "MAIN_togglereaction_enabled": "**Citado por reacciones ha sido activado.**",
     "MAIN_togglereaction_disabled": "**Citado por reacciones ha sido desactivado.**",
     "MAIN_clone_msglimit": "**Solo puedes clonar un máximo de 50 mensajes.**",
-    "PERSONAL_personalquote_notfound": "**ID inválida.**",
+    "PERSONAL_personalquote_notfound": "**Cita no encontrada.**",
     "PERSONAL_personallist_noquotes": "**No tienes ninguna Cita Personal.**",
     "PERSONAL_personallist_embedauthor": "Mis Citas",
     "PERSONAL_personalset_set": "**Cita Personal `{0}` fijado.**",
