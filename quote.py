@@ -1,6 +1,7 @@
 import json
 import os
 from functools import partial
+from re import compile
 from sqlite3 import PARSE_COLNAMES, PARSE_DECLTYPES
 
 import discord
@@ -11,7 +12,7 @@ from discord.ext import commands
 async def get_prefix(bot, msg):
     if msg.guild:
         try:
-            return commands.when_mentioned_or((await bot.fetch("SELECT prefix FROM guild WHERE id = ?", True, (msg.guild.id,)))[0])(bot, msg)
+            return commands.when_mentioned_or(await bot.fetch("SELECT prefix FROM guild WHERE id = ?", (msg.guild.id,)))(bot, msg)
         except Exception:
             pass
     return commands.when_mentioned_or(bot.config['default_prefix'])(bot, msg)
@@ -74,6 +75,11 @@ class QuoteBot(commands.AutoShardedBot):
         self.config = config
         self.db_connect = partial(connect, 'configs/QuoteBot.db', detect_types=PARSE_DECLTYPES | PARSE_COLNAMES)
 
+        self.msg_id_regex = compile(r'(?:(?P<channel_id>[0-9]{15,21})(?:-|/|\s))?(?P<message_id>[0-9]{15,21})$')
+        self.msg_url_regex = compile(r'https?://(?:(canary|ptb|www)\.)?discord(?:app)?\.com/channels/'
+                                     r'(?:(?P<guild_id>[0-9]{15,21})|(?P<dm>@me))/(?P<channel_id>[0-9]{15,21})/'
+                                     r'(?P<message_id>[0-9]{15,21})/?(?:$|\s)')
+
         self.responses = dict()
 
         for filename in os.listdir(path='localization'):
@@ -84,24 +90,39 @@ class QuoteBot(commands.AutoShardedBot):
         async with self.db_connect() as db:
             await db.execute("PRAGMA auto_vacuum = 1")
             await db.execute("PRAGMA foreign_keys = ON")
-            await db.execute("""
+            await db.execute(f"""
                 CREATE TABLE
                 IF NOT EXISTS guild (
                     id INTEGER PRIMARY KEY,
-                    prefix TEXT DEFAULT '%s' NOT NULL,
-                    language TEXT DEFAULT '%s' NOT NULL,
+                    prefix TEXT DEFAULT '{self.config['default_prefix']}' NOT NULL,
+                    language TEXT DEFAULT '{self.config['default_lang']}' NOT NULL,
                     on_reaction INTEGER DEFAULT 0 NOT NULL,
                     quote_links INTEGER DEFAULT 0 NOT NULL,
                     delete_commands INTEGER DEFAULT 0 NOT NULL,
                     pin_channel INTEGER
                 )
-            """.format(self.config['default_prefix'], self.config['default_lang']))
+            """)
+            await db.execute("""
+                CREATE TABLE
+                IF NOT EXISTS channel (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    guild_id INTEGER NOT NULL REFERENCES guild ON DELETE CASCADE
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE
+                IF NOT EXISTS message (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    channel_id INTEGER REFERENCES channel ON DELETE CASCADE
+                )
+            """)
             await db.execute("""
                 CREATE TABLE
                 IF NOT EXISTS personal_quote (
-                    id INTEGER PRIMARY KEY,
-                    author INTEGER NOT NULL,
-                    response TEXT
+                    owner_id INTEGER NOT NULL REFERENCES guild ON DELETE CASCADE,
+                    alias TEXT NOT NULL,
+                    message_id INTEGER NOT NULL REFERENCES message ON DELETE CASCADE,
+                    PRIMARY KEY (owner_id, alias)
                 )
             """)
             await db.commit()
@@ -111,9 +132,11 @@ class QuoteBot(commands.AutoShardedBot):
                 name=f"messages in {'1 server' if (guild_count := len(self.guilds)) == 1 else f'{guild_count} servers'}",
                 type=discord.ActivityType.watching))
 
-    async def fetch(self, sql: str, one=True, *args):
+    async def fetch(self, sql: str, params: tuple, one=True, single_column=True):
         async with self.db_connect() as db:
-            async with db.execute(sql, *args) as cur:
+            if single_column:
+                db.row_factory = lambda cur, row: row[0]
+            async with db.execute(sql, params) as cur:
                 return await cur.fetchone() if one else await cur.fetchall()
 
     async def localize(self, guild, query):
@@ -121,6 +144,54 @@ class QuoteBot(commands.AutoShardedBot):
             return self.responses[(await self.fetch("SELECT language FROM guild WHERE id = ?", True, (guild.id,)))[0]][query]
         except Exception:
             return self.responses[self.config['default_lang']][query]
+
+    async def get_message(self, ctx, msg_dict):
+        msg_id = int(msg_dict['message_id'])
+        if msg_dict.get('dm'):
+            return discord.utils.get(self.cached_messages,
+                                     channel=(channel := await ctx.author.create_dm()),
+                                     id=msg_id) or await channel.fetch_message(msg_id)
+        if channel_id := msg_dict.get('channel_id'):
+            channel_id = int(channel_id)
+            if msg := discord.utils.get(self.cached_messages, channel__id=channel_id, id=msg_id):
+                return msg
+
+            if guild_id := msg_dict.get('guild_id'):
+                guild_id = int(guild_id)
+                if msg := discord.utils.get(self.cached_messages, guild__id=guild_id, id=msg_id):
+                    return msg
+                if guild := self.get_guild(guild_id):
+                    if channel := guild.get_channel(channel_id):
+                        if msg := await channel.fetch_message(msg_id):
+                            return msg
+                        raise commands.MessageNotFound(msg_id)
+                raise commands.ChannelNotFound(channel_id)
+
+            if channel := self.bot.get_channel(channel_id):
+                if msg := await channel.fetch_message(msg_id):
+                    return msg
+                raise commands.MessageNotFound(msg_id)
+            raise commands.ChannelNotFound(channel_id)
+
+        try:
+            return discord.utils.get(self.cached_messages,
+                                     channel=ctx.channel,
+                                     id=msg_id) or await ctx.channel.fetch_message(msg_id)
+        except (discord.NotFound, discord.Forbidden):
+            if guild := ctx.guild:
+                for channel in guild.text_channels:
+                    if channel == ctx.channel:
+                        continue
+                    try:
+                        return await channel.fetch_message(msg_id)
+                    except (discord.NotFound, discord.Forbidden):
+                        continue
+            try:
+                return await ctx.author.fetch_message(msg_id)
+            except (discord.NotFound, discord.Forbidden):
+                if msg := self._connection._get_message(msg_id) or discord.utils.get(self.cached_messages, id=msg_id):
+                    return msg
+            raise
 
     async def insert_new_guild(self, db, guild):
         await db.execute("INSERT OR IGNORE INTO guild (id, prefix, language) VALUES (?, ?, ?)",
@@ -148,13 +219,20 @@ class QuoteBot(commands.AutoShardedBot):
         await self._update_presence()
         await self._prepare_db()
 
-        async with self.db_connect() as db:
-            for guild in self.guilds:
-                try:
-                    await self.insert_new_guild(db, guild)
-                except Exception:
-                    continue
-            await db.commit()
+        if guilds := self.guilds:
+            async with self.db_connect() as db:
+                db.row_factory = lambda cur, row: row[0]
+                async with db.execute(f"SELECT id FROM guild WHERE id NOT IN ({', '.join(str(guild.id) for guild in guilds)})") as cur:
+                    removed_guild_ids = ', '.join(str(guild_id) for guild_id in await cur.fetchall())
+                if removed_guild_ids:
+                    await db.execute(f"DELETE FROM guild WHERE id IN ({removed_guild_ids})")
+                    await db.execute(f"DELETE FROM personal_quote WHERE owner_id IN ({removed_guild_ids})")
+                for guild in guilds:
+                    try:
+                        await self.insert_new_guild(db, guild)
+                    except Exception:
+                        continue
+                await db.commit()
 
         print("QuoteBot is ready.")
 
@@ -169,6 +247,10 @@ class QuoteBot(commands.AutoShardedBot):
 
     async def on_guild_remove(self, guild):
         await self._update_presence()
+        async with self.bot.db_connect() as db:
+            await db.execute("DELETE FROM guild WHERE id = ?", (guild.id,))
+            await db.execute("DELETE FROM personal_quote WHERE owner_id = ?", (guild.id,))
+            await db.commit()
 
     async def on_message(self, msg):
         if not msg.author.bot:

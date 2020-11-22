@@ -16,79 +16,27 @@ MARKDOWN = re.compile((r"```.*?```"                      # ```multiline code```
                        r"|\|\|.*?\|\|"                   # ||spoiler||
                        r"|<https?://\S*?>"),             # <suppressed links>
                       re.DOTALL | re.MULTILINE)
-MESSAGE_ID = re.compile(r'(?:(?P<channel_id>[0-9]{15,21})(?:-|/|\s))?(?P<message_id>[0-9]{15,21})$')
-MESSAGE_URL = re.compile(r'https?://(?:(canary|ptb|www)\.)?discord(?:app)?\.com/channels/'
-                         r'(?:(?P<guild_id>[0-9]{15,21})|(?P<dm>@me))/(?P<channel_id>[0-9]{15,21})/'
-                         r'(?P<message_id>[0-9]{15,21})/?(?:$|\s)')
 
 
 class Main(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def get_message(self, ctx, group_dict):
-        msg_id = int(group_dict['message_id'])
-        if group_dict.get('dm'):
-            return discord.utils.get(self.bot.cached_messages,
-                                     channel=(channel := await ctx.author.create_dm()),
-                                     id=msg_id) or await channel.fetch_message(msg_id)
-        if channel_id := group_dict.get('channel_id'):
-            channel_id = int(channel_id)
-            if msg := discord.utils.get(self.bot.cached_messages, channel__id=channel_id, id=msg_id):
-                return msg
-
-            if guild_id := group_dict.get('guild_id'):
-                guild_id = int(guild_id)
-                if msg := discord.utils.get(self.bot.cached_messages, guild__id=guild_id, id=msg_id):
-                    return msg
-                if guild := self.bot.get_guild(guild_id):
-                    if channel := guild.get_channel(channel_id):
-                        if msg := await channel.fetch_message(msg_id):
-                            return msg
-                        raise commands.MessageNotFound(msg_id)
-                raise commands.ChannelNotFound(channel_id)
-
-            if channel := self.bot.get_channel(channel_id):
-                if msg := await channel.fetch_message(msg_id):
-                    return msg
-                raise commands.MessageNotFound(msg_id)
-            raise commands.ChannelNotFound(channel_id)
-
-        try:
-            return discord.utils.get(self.bot.cached_messages,
-                                     channel=ctx.channel,
-                                     id=msg_id) or await ctx.channel.fetch_message(msg_id)
-        except (discord.NotFound, discord.Forbidden):
-            if guild := ctx.guild:
-                for channel in guild.text_channels:
-                    if channel == ctx.channel:
-                        continue
-                    try:
-                        return await channel.fetch_message(msg_id)
-                    except (discord.NotFound, discord.Forbidden):
-                        continue
-            try:
-                return await ctx.author.fetch_message(msg_id)
-            except (discord.NotFound, discord.Forbidden):
-                if msg := self.bot._connection._get_message(msg_id) or discord.utils.get(self.bot.cached_messages, id=msg_id):
-                    return msg
-            raise
-
     @commands.Cog.listener()
     async def on_message(self, msg):
         if ((ctx := await self.bot.get_context(msg)).valid or msg.author.bot or not msg.guild
-                or not (await self.bot.fetch("SELECT quote_links FROM guild WHERE id = ?", True, (msg.guild.id,)))[0]):
+                or not (await self.bot.fetch("SELECT quote_links FROM guild WHERE id = ?", (msg.guild.id,)))):
             return
-        if match := MESSAGE_URL.search(MARKDOWN.sub('?', msg.content)):
+        if match := self.bot.msg_url_regex.search(MARKDOWN.sub('?', msg.content)):
             try:
-                quoted_msg = await self.get_message(ctx, match.groupdict())
+                quoted_msg = await self.bot.get_message(ctx, match.groupdict())
             except Exception:
                 return
             return await self.bot.quote_message(quoted_msg, msg.channel, msg.author, 'link')
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        if payload.emoji.name != '💬' or not (await self.bot.fetch("SELECT on_reaction FROM guild WHERE id = ?", True, (payload.guild_id,)))[0]:
+        if payload.emoji.name != '💬' or not await self.bot.fetch("SELECT on_reaction FROM guild WHERE id = ?", (payload.guild_id,)):
             return
         guild = self.bot.get_guild(payload.guild_id)
         channel = guild.get_channel(payload.channel_id)
@@ -101,15 +49,15 @@ class Main(commands.Cog):
     @commands.command(aliases=['q'])
     async def quote(self, ctx, query: str):
         if guild := ctx.guild:
-            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", True, (guild.id,)))[0]:
+            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,)):
                 await ctx.message.delete()
             if not perms.send_messages:
                 return
             elif not perms.embed_links:
                 return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'META_perms_noembed')}")
-        if match := MESSAGE_ID.match(query) or MESSAGE_URL.match(query):
+        if match := self.bot.msg_id_regex.match(query) or self.bot.msg_url_regex.match(query):
             try:
-                msg = await self.get_message(ctx, match.groupdict())
+                msg = await self.bot.get_message(ctx, match.groupdict())
             except discord.Forbidden:
                 return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_noperms')}")
             except Exception:
@@ -164,7 +112,11 @@ class Main(commands.Cog):
                 webhook = discord.Webhook.from_url(webhook_obj.url, adapter=discord.AsyncWebhookAdapter(session))
                 for msg in messages[::-1]:
                     try:
-                        await webhook.send(username=(msg.author.nick if isinstance(msg.author, discord.Member) and msg.author.nick else msg.author.name), avatar_url=msg.author.avatar_url, content=msg.content, embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == 'rich' else None), wait=True)
+                        await webhook.send(username=getattr(msg.author, 'nick', msg.author.name),
+                                           avatar_url=msg.author.avatar_url,
+                                           content=msg.content if ctx.guild == channel.guild else msg.clean_content,
+                                           embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == 'rich' else None),
+                                           wait=True)
                     except (discord.NotFound, discord.Forbidden):
                         break
                     else:
