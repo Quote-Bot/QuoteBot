@@ -7,6 +7,7 @@ class PersonalQuotes(commands.Cog):
         self.bot = bot
 
     async def send_quote(self, ctx, alias: str, server=False):
+        await ctx.trigger_typing()
         async with self.bot.db_connect() as db:
             if (guild := ctx.guild) and guild.me.permissions_in(ctx.channel).manage_messages and (await (await db.execute("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]:
                 await ctx.message.delete()

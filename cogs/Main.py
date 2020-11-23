@@ -48,7 +48,8 @@ class Main(commands.Cog):
             await self.bot.quote_message(msg, channel, payload.member)
 
     @commands.command(aliases=['q'])
-    async def quote(self, ctx, *, query: str):
+    async def quote(self, ctx, *, query: str = None):
+        await ctx.trigger_typing()
         if guild := ctx.guild:
             if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,)):
                 await ctx.message.delete()
@@ -56,6 +57,12 @@ class Main(commands.Cog):
                 return
             elif not perms.embed_links:
                 return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'META_perms_noembed')}")
+        if query is None:
+            try:
+                async for msg in ctx.channel.history(limit=1, before=ctx.message):
+                    return await self.bot.quote_message(msg, ctx.channel, ctx.author)
+            except Exception:
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
         if match := self.bot.msg_id_regex.match(query) or self.bot.msg_url_regex.match(query):
             try:
                 return await self.bot.quote_message(await self.bot.get_message(ctx, match.groupdict()), ctx.channel, ctx.author)

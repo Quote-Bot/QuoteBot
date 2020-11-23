@@ -37,6 +37,7 @@ class Snipe(commands.Cog):
                 self.edits[before.guild.id] = {before.channel.id: before}
 
     async def snipe_msg(self, ctx, channel, edit=False):
+        await ctx.trigger_typing()
         if not channel:
             channel = ctx.channel
         if not ctx.author.permissions_in(channel).read_messages or not ctx.author.permissions_in(channel).read_message_history:
