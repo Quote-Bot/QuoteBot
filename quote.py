@@ -5,6 +5,7 @@ from re import compile
 from sqlite3 import PARSE_COLNAMES, PARSE_DECLTYPES
 
 import discord
+from aiohttp import ClientSession
 from aiosqlite import connect
 from discord.ext import commands
 
@@ -219,6 +220,12 @@ class QuoteBot(commands.AutoShardedBot):
         await self._update_presence()
         await self._prepare_db()
 
+        self.session = ClientSession()
+        if botlog_webhook_url := self.config['botlog_webhook_url']:
+            self.webhook = discord.Webhook.from_url(botlog_webhook_url,
+                                                    adapter=discord.AsyncWebhookAdapter(self.session))
+        self.owner_ids.add((await self.application_info()).owner.id)
+
         if guilds := self.guilds:
             async with self.db_connect() as db:
                 db.row_factory = lambda cur, row: row[0]
@@ -247,7 +254,7 @@ class QuoteBot(commands.AutoShardedBot):
 
     async def on_guild_remove(self, guild):
         await self._update_presence()
-        async with self.bot.db_connect() as db:
+        async with self.db_connect() as db:
             await db.execute("DELETE FROM guild WHERE id = ?", (guild.id,))
             await db.execute("DELETE FROM personal_quote WHERE owner_id = ?", (guild.id,))
             await db.commit()
@@ -258,6 +265,8 @@ class QuoteBot(commands.AutoShardedBot):
 
     async def close(self):
         print("QuoteBot closed.")
+        if session := getattr(self, 'session', False):
+            await session.close()
         return await super().close()
 
 

@@ -1,7 +1,6 @@
 import asyncio
 import re
 
-import aiohttp
 import discord
 from discord.ext import commands
 
@@ -108,21 +107,20 @@ class Main(commands.Cog):
         else:
             webhook_obj = await ctx.channel.create_webhook(name=self.bot.user.name)
             messages = await channel.history(limit=msg_limit, before=ctx.message).flatten()
-            async with aiohttp.ClientSession() as session:
-                webhook = discord.Webhook.from_url(webhook_obj.url, adapter=discord.AsyncWebhookAdapter(session))
-                for msg in messages[::-1]:
-                    try:
-                        await webhook.send(username=getattr(msg.author, 'nick', msg.author.name),
-                                           avatar_url=msg.author.avatar_url,
-                                           content=msg.content if ctx.guild == channel.guild else msg.clean_content,
-                                           embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == 'rich' else None),
-                                           wait=True)
-                    except (discord.NotFound, discord.Forbidden):
-                        break
-                    else:
-                        messages.remove(msg)
-                        if messages:
-                            await asyncio.sleep(0.5)
+            webhook = discord.Webhook.from_url(webhook_obj.url, adapter=discord.AsyncWebhookAdapter(self.bot.session))
+            for msg in messages[::-1]:
+                try:
+                    await webhook.send(username=getattr(msg.author, 'nick', msg.author.name),
+                                       avatar_url=msg.author.avatar_url,
+                                       content=msg.content if ctx.guild == channel.guild else msg.clean_content,
+                                       embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == 'rich' else None),
+                                       wait=True)
+                except (discord.NotFound, discord.Forbidden):
+                    break
+                else:
+                    messages.remove(msg)
+                    if messages:
+                        await asyncio.sleep(0.5)
             await webhook_obj.delete()
 
 
