@@ -1,7 +1,7 @@
 import json
 import os
 from functools import partial
-from re import compile
+import re
 from sqlite3 import PARSE_COLNAMES, PARSE_DECLTYPES
 
 import discord
@@ -76,10 +76,10 @@ class QuoteBot(commands.AutoShardedBot):
         self.config = config
         self.db_connect = partial(connect, 'configs/QuoteBot.db', detect_types=PARSE_DECLTYPES | PARSE_COLNAMES)
 
-        self.msg_id_regex = compile(r'(?:(?P<channel_id>[0-9]{15,21})(?:-|/|\s))?(?P<message_id>[0-9]{15,21})$')
-        self.msg_url_regex = compile(r'https?://(?:(canary|ptb|www)\.)?discord(?:app)?\.com/channels/'
-                                     r'(?:(?P<guild_id>[0-9]{15,21})|(?P<dm>@me))/(?P<channel_id>[0-9]{15,21})/'
-                                     r'(?P<message_id>[0-9]{15,21})/?(?:$|\s)')
+        self.msg_id_regex = re.compile(r'(?:(?P<channel_id>[0-9]{15,21})(?:-|/|\s))?(?P<message_id>[0-9]{15,21})$')
+        self.msg_url_regex = re.compile(r'https?://(?:(canary|ptb|www)\.)?discord(?:app)?\.com/channels/'
+                                        r'(?:(?P<guild_id>[0-9]{15,21})|(?P<dm>@me))/(?P<channel_id>[0-9]{15,21})/'
+                                        r'(?P<message_id>[0-9]{15,21})/?(?:$|\s)')
 
         self.responses = dict()
 

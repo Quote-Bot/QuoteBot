@@ -20,6 +20,8 @@ MARKDOWN = re.compile((r"```.*?```"                      # ```multiline code```
 class Main(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.channel_converter = commands.TextChannelConverter()
+        self.user_converter = commands.UserConverter()
 
     @commands.Cog.listener()
     async def on_message(self, msg):
@@ -46,7 +48,7 @@ class Main(commands.Cog):
             await self.bot.quote_message(msg, channel, payload.member)
 
     @commands.command(aliases=['q'])
-    async def quote(self, ctx, query: str):
+    async def quote(self, ctx, *, query: str):
         if guild := ctx.guild:
             if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,)):
                 await ctx.message.delete()
@@ -56,13 +58,36 @@ class Main(commands.Cog):
                 return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'META_perms_noembed')}")
         if match := self.bot.msg_id_regex.match(query) or self.bot.msg_url_regex.match(query):
             try:
-                msg = await self.bot.get_message(ctx, match.groupdict())
+                return await self.bot.quote_message(await self.bot.get_message(ctx, match.groupdict()), ctx.channel, ctx.author)
+            except discord.Forbidden:
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_noperms')}")
+            except Exception:
+                if match.group('channel_id'):
+                    return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
+        try:
+            channel = await self.channel_converter.convert(ctx, query)
+        except Exception:
+            try:
+                user = await self.user_converter.convert(ctx, query)
+            except Exception:
+                if match:
+                    return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
+            else:
+                try:
+                    async for msg in ctx.channel.history(before=ctx.message):
+                        if msg.author.id == user.id:
+                            return await self.bot.quote_message(msg, ctx.channel, ctx.author)
+                except Exception:
+                    pass
+                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
+        else:
+            try:
+                async for msg in channel.history(limit=1, before=ctx.message):
+                    return await self.bot.quote_message(msg, ctx.channel, ctx.author)
             except discord.Forbidden:
                 return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_noperms')}")
             except Exception:
                 return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
-            else:
-                return await self.bot.quote_message(msg, ctx.channel, ctx.author)
         return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_inputerror')}")
 
     @commands.command(aliases=['togglereactions', 'togglereact', 'reactions'])
