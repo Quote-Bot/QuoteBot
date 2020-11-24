@@ -87,6 +87,8 @@ class QuoteBot(commands.AutoShardedBot):
             with open(os.path.join('localization', filename), encoding='utf-8') as json_data:
                 self.responses[filename[:-5]] = json.load(json_data)
 
+        self.loop.create_task(self.startup())
+
     async def _prepare_db(self):
         async with self.db_connect() as db:
             await db.execute("PRAGMA auto_vacuum = 1")
@@ -132,6 +134,32 @@ class QuoteBot(commands.AutoShardedBot):
         await self.change_presence(activity=discord.Activity(
                 name=f"messages in {'1 server' if (guild_count := len(self.guilds)) == 1 else f'{guild_count} servers'}",
                 type=discord.ActivityType.watching))
+
+    async def startup(self):
+        self.session = ClientSession(loop=self.loop)
+        if botlog_webhook_url := self.config['botlog_webhook_url']:
+            self.webhook = discord.Webhook.from_url(botlog_webhook_url,
+                                                    adapter=discord.AsyncWebhookAdapter(self.session))
+        await self._prepare_db()
+        await self.wait_until_ready()
+        self.owner_ids.add((await self.application_info()).owner.id)
+
+        if guilds := self.guilds:
+            async with self.db_connect() as db:
+                db.row_factory = lambda cur, row: row[0]
+                async with db.execute(f"SELECT id FROM guild WHERE id NOT IN ({', '.join(str(guild.id) for guild in guilds)})") as cur:
+                    removed_guild_ids = ', '.join(str(guild_id) for guild_id in await cur.fetchall())
+                if removed_guild_ids:
+                    await db.execute(f"DELETE FROM guild WHERE id IN ({removed_guild_ids})")
+                    await db.execute(f"DELETE FROM personal_quote WHERE owner_id IN ({removed_guild_ids})")
+                for guild in guilds:
+                    try:
+                        await self.insert_new_guild(db, guild)
+                    except Exception:
+                        continue
+                await db.commit()
+
+        print("QuoteBot is ready.")
 
     async def fetch(self, sql: str, params: tuple, one=True, single_column=True):
         async with self.db_connect() as db:
@@ -218,30 +246,6 @@ class QuoteBot(commands.AutoShardedBot):
 
     async def on_ready(self):
         await self._update_presence()
-        await self._prepare_db()
-
-        self.session = ClientSession()
-        if botlog_webhook_url := self.config['botlog_webhook_url']:
-            self.webhook = discord.Webhook.from_url(botlog_webhook_url,
-                                                    adapter=discord.AsyncWebhookAdapter(self.session))
-        self.owner_ids.add((await self.application_info()).owner.id)
-
-        if guilds := self.guilds:
-            async with self.db_connect() as db:
-                db.row_factory = lambda cur, row: row[0]
-                async with db.execute(f"SELECT id FROM guild WHERE id NOT IN ({', '.join(str(guild.id) for guild in guilds)})") as cur:
-                    removed_guild_ids = ', '.join(str(guild_id) for guild_id in await cur.fetchall())
-                if removed_guild_ids:
-                    await db.execute(f"DELETE FROM guild WHERE id IN ({removed_guild_ids})")
-                    await db.execute(f"DELETE FROM personal_quote WHERE owner_id IN ({removed_guild_ids})")
-                for guild in guilds:
-                    try:
-                        await self.insert_new_guild(db, guild)
-                    except Exception:
-                        continue
-                await db.commit()
-
-        print("QuoteBot is ready.")
 
     async def on_guild_join(self, guild):
         await self._update_presence()
@@ -265,9 +269,8 @@ class QuoteBot(commands.AutoShardedBot):
 
     async def close(self):
         print("QuoteBot closed.")
-        if session := getattr(self, 'session', False):
-            await session.close()
-        return await super().close()
+        await self.session.close()
+        await super().close()
 
 
 if __name__ == '__main__':
