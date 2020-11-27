@@ -37,13 +37,14 @@ class Snipe(commands.Cog):
                 self.edits[before.guild.id] = {before.channel.id: before}
 
     async def snipe_msg(self, ctx, channel, edit=False):
+        await ctx.trigger_typing()
         if not channel:
             channel = ctx.channel
         if not ctx.author.permissions_in(channel).read_messages or not ctx.author.permissions_in(channel).read_message_history:
             return
 
         if guild := ctx.guild:
-            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", True, (guild.id,)))[0]:
+            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))):
                 await ctx.message.delete()
             if not perms.send_messages:
                 return
