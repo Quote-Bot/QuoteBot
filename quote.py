@@ -170,7 +170,7 @@ class QuoteBot(commands.AutoShardedBot):
 
     async def localize(self, guild, query):
         try:
-            return self.responses[(await self.fetch("SELECT language FROM guild WHERE id = ?", True, (guild.id,)))[0]][query]
+            return self.responses[(await self.fetch("SELECT language FROM guild WHERE id = ?", (guild.id,)))][query]
         except Exception:
             return self.responses[self.config['default_lang']][query]
 

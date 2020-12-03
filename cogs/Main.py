@@ -129,6 +129,28 @@ class Main(commands.Cog):
             await db.commit()
         await ctx.send(f"{self.bot.config['response_strings']['success']} {await self.bot.localize(ctx.guild, 'MAIN_toggledelete_enabled' if new else 'MAIN_toggledelete_disabled')}")
 
+    @commands.command(aliases=['prefix'])
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
+    async def setprefix(self, ctx, prefix: str):
+        if len(prefix) > 3:
+            return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_setprefix_toolong')}")
+        async with self.bot.db_connect() as db:
+            await db.execute('UPDATE guild SET prefix = ? WHERE id = ?', (prefix, ctx.guild.id))
+            await db.commit()
+        await ctx.send(f"{self.bot.config['response_strings']['success']} {(await self.bot.localize(ctx.guild, 'MAIN_setprefix_set')).format(prefix)}")
+
+    @commands.command(aliases=['language', 'setlang', 'lang', 'localize'])
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
+    async def setlanguage(self, ctx, language: str):
+        if language not in self.bot.responses:
+            return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_setlanguage_notavailable')}")
+        async with self.bot.db_connect() as db:
+            await db.execute('UPDATE guild SET language = ? WHERE id = ?', (language, ctx.guild.id))
+            await db.commit()
+        await ctx.send(f"{self.bot.config['response_strings']['success']} {(await self.bot.localize(ctx.guild, 'MAIN_setlanguage_set')).format(language)}")
+
     @commands.command()
     @commands.has_permissions(manage_guild=True)
     async def clone(self, ctx, msg_limit: int, channel: discord.TextChannel):
