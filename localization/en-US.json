@@ -24,6 +24,7 @@
     "HELP_serverlist": "List the Server Quotes.",
     "HELP_serverclear": "Remove all Server Quotes.",
     "HELP_shutdown": "Shut down the bot (owner only).",
+    "HELP_languages": "List the available languages.",
     "HELP_toggledelete": "Toggle deleting quote command messages in the server. Requires the 'Manage Server' permission.",
     "HELP_togglelinks": "Toggle quoting linked messages in the server. Requires the 'Manage Server' permission.",
     "HELP_togglereaction": "Toggle quoting by adding :speech_balloon: reactions to messages in the server. Requires the 'Manage Server' permission.",
@@ -46,6 +47,7 @@
     "MAIN_server_embedfooter": "Server Quote by {0} from {1}",
     "MAIN_snipe_rawembed": "Raw embed sniped by @\u200b{0} from @\u200b{1} in {2}",
     "MAIN_snipe_embedfooter": "Sniped by {0} from {1}",
+    "MAIN_languages_title": "Available languages",
     "MAIN_toggledelete_enabled": "**Deleting quote command messages enabled.**",
     "MAIN_toggledelete_disabled": "**Deleting quote command messages disabled.**",
     "MAIN_togglelinks_enabled": "**Linked message quoting enabled.**",
@@ -74,5 +76,9 @@
     "META_perms_noembed": "**I don't have `Embed Links` permission.**",
     "META_perms_nomanagemessages": "**I don't have the `Manage Messages` permission.**",
     "META_perms_nowebhook": "**I don't have `Manage Webhooks` permission.**",
+    "META_command_oncooldown": "**Command on cooldown. Try again in {0} s.**",
+    "META_command_noprivatemsg": "**This command can only be used in servers.**",
+    "META_command_noperms": "**You don't have permission to use this command.**",
+    "META_command_inputerror": "**Invalid command input. Use `{0}` for command usage info.**",
     "OWNER_shutdown": "**Shutting down.**"
 }

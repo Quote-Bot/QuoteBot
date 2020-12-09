@@ -97,6 +97,12 @@ class Main(commands.Cog):
                 return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
         return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_inputerror')}")
 
+    @commands.command(aliases=['langs', 'localizations'])
+    async def languages(self, ctx):
+        await ctx.send(embed=discord.Embed(title=f":map: {await self.bot.localize(guild := ctx.guild, 'MAIN_languages_title')}",
+                                           description='\n'.join(f':flag_{tag[3:].lower()}: **{tag}**' for tag in sorted(self.bot.responses.keys())),
+                                           color=(guild and guild.me.color.value) or self.bot.config['default_embed_color']))
+
     @commands.command(aliases=['togglereactions', 'togglereact', 'reactions'])
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
