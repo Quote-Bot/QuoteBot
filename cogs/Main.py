@@ -17,6 +17,15 @@ MARKDOWN = re.compile((r"```.*?```"                      # ```multiline code```
                       re.DOTALL | re.MULTILINE)
 
 
+async def webhook_copy(webhook, msg, clean_content=False):
+    await webhook.send(username=getattr(msg.author, 'nick', False) or msg.author.name,
+                       avatar_url=msg.author.avatar_url,
+                       content=msg.clean_content if clean_content else msg.content,
+                       files=[await attachment.to_file() for attachment in msg.attachments],
+                       embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == 'rich' else None),
+                       allowed_mentions=discord.AllowedMentions.none())
+
+
 class Main(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -162,26 +171,27 @@ class Main(commands.Cog):
     async def clone(self, ctx, msg_limit: int, channel: discord.TextChannel):
         if not ctx.guild.me.permissions_in(ctx.channel).manage_webhooks:
             await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'META_perms_nowebhook')}")
-        elif msg_limit > 50:
+        elif msg_limit < 1 or msg_limit > 50:
             await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(ctx.guild, 'MAIN_clone_msglimit')}")
         else:
-            webhook_obj = await ctx.channel.create_webhook(name=self.bot.user.name)
+            webhook = await ctx.channel.create_webhook(name=self.bot.user.name)
             messages = await channel.history(limit=msg_limit, before=ctx.message).flatten()
-            webhook = discord.Webhook.from_url(webhook_obj.url, adapter=discord.AsyncWebhookAdapter(self.bot.session))
-            for msg in messages[::-1]:
-                try:
-                    await webhook.send(username=getattr(msg.author, 'nick', msg.author.name),
-                                       avatar_url=msg.author.avatar_url,
-                                       content=msg.content if ctx.guild == channel.guild else msg.clean_content,
-                                       embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == 'rich' else None),
-                                       wait=True)
-                except (discord.NotFound, discord.Forbidden):
-                    break
-                else:
-                    messages.remove(msg)
-                    if messages:
-                        await asyncio.sleep(0.5)
-            await webhook_obj.delete()
+            ignored = (discord.HTTPException, discord.NotFound, discord.Forbidden)
+            try:
+                await webhook_copy(webhook, messages.pop(), clean_content := ctx.guild != channel.guild)
+            except ignored:
+                pass
+            else:
+                for msg in messages[::-1]:
+                    await asyncio.sleep(0.5)
+                    try:
+                        await webhook_copy(webhook, msg, clean_content)
+                    except ignored:
+                        break
+        try:
+            await webhook.delete()
+        except ignored:
+            pass
 
 
 def setup(bot):

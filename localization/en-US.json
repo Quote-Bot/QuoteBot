@@ -58,7 +58,7 @@
     "MAIN_setprefix_toolong": "**Prefix cannot be longer than 3 characters.**",
     "MAIN_setlanguage_set": "**Language set to `{0}` in this server.**",
     "MAIN_setlanguage_notavailable": "**Language not available.**",
-    "MAIN_clone_msglimit": "**You can only clone up to 50 messages.**",
+    "MAIN_clone_msglimit": "**You can only clone 1 to 50 messages.**",
     "PERSONAL_personalquote_notfound": "**Quote not found.**",
     "PERSONAL_personallist_noquotes": "**You don't have any Personal Quotes.**",
     "PERSONAL_personallist_embedauthor": "My Quotes",

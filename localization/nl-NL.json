@@ -58,7 +58,7 @@
     "MAIN_setprefix_toolong": "**Voorvoegsel mag niet langer zijn dan 3 karakters.**",
     "MAIN_setlanguage_set": "**Taal ingesteld op `{0}` in deze server.**",
     "MAIN_setlanguage_notavailable": "**Taal niet beschikbaar.**",
-    "MAIN_clone_msglimit": "**Er kunnen maximaal 50 berichten worden gekloond.**",
+    "MAIN_clone_msglimit": "**Er kunnen alleen 1 tot 50 berichten worden gekloond.**",
     "PERSONAL_personalquote_notfound": "**Ongeldig ID.**",
     "PERSONAL_personallist_noquotes": "**U heeft geen Persoonlijke Citaten.**",
     "PERSONAL_personallist_embedauthor": "Mijn Citaten",
