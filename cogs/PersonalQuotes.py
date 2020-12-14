@@ -93,14 +93,14 @@ class PersonalQuotes(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel):
         async with self.bot.db_connect() as db:
-            await db.execute('PRAGMA foreign_keys = ON')
+            await db.execute("PRAGMA foreign_keys = ON")
             await db.execute("DELETE FROM channel WHERE id = ?", (channel.id,))
             await db.commit()
 
     @commands.Cog.listener()
     async def on_message_delete(self, msg):
         async with self.bot.db_connect() as db:
-            await db.execute('PRAGMA foreign_keys = ON')
+            await db.execute("PRAGMA foreign_keys = ON")
             await db.execute("DELETE FROM message WHERE id = ?", (msg.id,))
             await db.commit()
 
