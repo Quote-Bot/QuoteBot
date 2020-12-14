@@ -1,6 +1,8 @@
 import json
 import os
 from functools import partial
+from sys import stderr
+from traceback import print_tb
 import re
 from sqlite3 import PARSE_COLNAMES, PARSE_DECLTYPES
 
@@ -30,15 +32,16 @@ class QuoteBotHelpCommand(commands.HelpCommand):
         ctx = self.context
         bot = ctx.bot
         prefix = (await get_prefix(bot, ctx.message))[-1]
-        embed = discord.Embed(color=ctx.guild.me.color.value or bot.config['default_embed_color'])
-        embed.add_field(name=await bot.localize(ctx.guild, 'HELPEMBED_links'),
-                        value=f"[{await bot.localize(ctx.guild, 'HELPEMBED_supportserver')}](https://discord.gg/vkWyTGa)\n"
-                              f"[{await bot.localize(ctx.guild, 'HELPEMBED_addme')}](https://discordapp.com/oauth2/authorize?client_id={bot.user.id}&permissions=537257984&scope=bot)\n"
-                              f"[{await bot.localize(ctx.guild, 'HELPEMBED_website')}](https://quote-bot.tk/)\n"
+        guild = ctx.guild
+        embed = discord.Embed(color=(guild and guild.me.color.value) or bot.config['default_embed_color'])
+        embed.add_field(name=await bot.localize(guild, 'HELPEMBED_links'),
+                        value=f"[{await bot.localize(guild, 'HELPEMBED_supportserver')}](https://discord.gg/vkWyTGa)\n"
+                              f"[{await bot.localize(guild, 'HELPEMBED_addme')}](https://discordapp.com/oauth2/authorize?client_id={bot.user.id}&permissions=537257984&scope=bot)\n"
+                              f"[{await bot.localize(guild, 'HELPEMBED_website')}](https://quote-bot.tk/)\n"
                               "[GitHub](https://github.com/Quote-Bot/QuoteBot)")
-        embed.add_field(name=await bot.localize(ctx.guild, 'HELPEMBED_commands'),
+        embed.add_field(name=await bot.localize(guild, 'HELPEMBED_commands'),
                         value=', '.join(f'`{prefix}{command}`' for command in sorted(c.name for c in bot.commands)))
-        embed.set_footer(text=(await bot.localize(ctx.guild, 'HELPEMBED_footer')).format(prefix))
+        embed.set_footer(text=(await bot.localize(guild, 'HELPEMBED_footer')).format(prefix))
         await ctx.send(embed=embed)
 
     async def send_cog_help(self, cog):
@@ -266,6 +269,27 @@ class QuoteBot(commands.AutoShardedBot):
     async def on_message(self, msg):
         if not msg.author.bot:
             await self.process_commands(msg)
+
+    async def on_command_error(self, ctx, error):
+        if isinstance(error, commands.CommandNotFound) or hasattr(ctx.command, 'on_error'):
+            return
+        guild = getattr(ctx, 'guild', None)
+        if isinstance(error := getattr(error, 'original', error), commands.NoPrivateMessage):
+            try:
+                await ctx.author.send(f"{self.config['response_strings']['error']} {await self.localize(guild, 'META_command_noprivatemsg')}")
+            except discord.HTTPException:
+                pass
+        elif isinstance(error, commands.CommandOnCooldown):
+            await ctx.send(f"{self.config['response_strings']['error']} {(await self.localize(guild, 'META_command_oncooldown')).format(round(error.retry_after, 1))}")
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.send(f"{self.config['response_strings']['error']} {await self.localize(guild, 'META_command_noperms')}")
+        elif isinstance(error, commands.UserInputError):
+            await ctx.send(f"{self.config['response_strings']['error']} {(await self.localize(guild, 'META_command_inputerror')).format(f'{(await self.get_prefix(ctx.message))[-1]}help {ctx.command.qualified_name}')}")
+        else:
+            if isinstance(error, discord.HTTPException):
+                print(f'In {ctx.command.qualified_name}:', file=stderr)
+            print(f'{error.__class__.__name__}: {error}', file=stderr)
+            print_tb(error.__traceback__)
 
     async def close(self):
         print("QuoteBot closed.")
