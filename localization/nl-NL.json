@@ -17,7 +17,7 @@
     "HELP_personalremove": "Verwijder het gespecificeerde Persoonlijke Citaat.",
     "HELP_personallist": "Toon uw lijst van Persoonlijke Citaten.",
     "HELP_personalclear": "Verwijder al uw Persoonlijke Citaten.",
-    "HELP_serverquote": "Send the specified Server Quote.",
+    "HELP_serverquote": "Stuur het gespecificeede Server Citaat.",
     "HELP_serverset": "Stel een Server Citaat in die in deze server geciteerd kan worden.",
     "HELP_servercopy": "Kopieer een Persoonlijk/Server Citaat zodat deze geciteerd kan worden in deze server.",
     "HELP_serverremove": "Verwijder het gespecificeede Server Citaat.",
