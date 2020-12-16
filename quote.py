@@ -131,6 +131,14 @@ class QuoteBot(commands.AutoShardedBot):
                     PRIMARY KEY (owner_id, alias)
                 )
             """)
+            await db.execute("""
+                CREATE TABLE
+                IF NOT EXISTS highlight (
+                    user_id INTEGER NOT NULL,
+                    query TEXT NOT NULL,
+                    PRIMARY KEY (user_id, query)
+                )
+            """)
             await db.commit()
 
     async def _update_presence(self):
@@ -229,23 +237,24 @@ class QuoteBot(commands.AutoShardedBot):
         await db.execute("INSERT OR IGNORE INTO guild (id, prefix, language) VALUES (?, ?, ?)",
                          (guild.id, self.config['default_prefix'], self.config['default_lang']))
 
-    async def quote_message(self, msg, channel, user, type='quote'):
-        guild = getattr(channel, 'guild', None)
+    async def quote_message(self, msg, destination, quoted_by, type='quote'):
+        guild = getattr(destination, 'guild', None)
+        from_dm = isinstance(msg.channel, discord.DMChannel)
         if not msg.content and msg.embeds:
-            return await channel.send((await self.localize(guild, f'MAIN_{type}_rawembed')).format(user, msg.author, (self.user if isinstance(msg.channel, discord.DMChannel) else msg.channel).mention), embed=msg.embeds[0])
+            return await destination.send((await self.localize(guild, f'MAIN_{type}_rawembed')).format(quoted_by, msg.author, (self.user if from_dm else msg.channel).mention), embed=msg.embeds[0])
         embed = discord.Embed(description=msg.content if msg.guild == guild else msg.clean_content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
         embed.set_author(name=str(msg.author), url=msg.jump_url, icon_url=msg.author.avatar_url)
         if msg.attachments:
-            if not isinstance(msg.channel, discord.DMChannel) and msg.channel.is_nsfw() and (isinstance(channel, discord.DMChannel) or not channel.is_nsfw()):
+            if not from_dm and msg.channel.is_nsfw() and (isinstance(destination, (discord.DMChannel, discord.User)) or not destination.is_nsfw()):
                 embed.add_field(name=f"{await self.localize(guild, 'MAIN_quote_attachments')}",
                                 value=f":underage: {await self.localize(guild, 'MAIN_quote_nonsfw')}")
-            elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.gifv', '.webp', '.bmp')):
+            elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(('.jpg', '.jpeg', '.jfif', '.png', '.gif', '.gifv', '.webp', '.bmp', '.svg', '.tiff')):
                 embed.set_image(url=url)
             else:
                 embed.add_field(name=f"{await self.localize(guild, 'MAIN_quote_attachments')}",
                                 value='\n'.join(f'[{attachment.filename}]({attachment.url})' for attachment in msg.attachments))
-        embed.set_footer(text=(await self.localize(guild, f'MAIN_{type}_embedfooter')).format(user, self.user if isinstance(msg.channel, discord.DMChannel) else f'#{msg.channel.name}'))
-        await channel.send(embed=embed)
+        embed.set_footer(text=(await self.localize(guild, f'MAIN_{type}_embedfooter')).format(quoted_by, self.user if from_dm else f'#{msg.channel.name}'))
+        await destination.send(embed=embed)
 
     async def on_ready(self):
         await self._update_presence()
@@ -303,7 +312,7 @@ if __name__ == '__main__':
         config = json.load(json_data)
         bot = QuoteBot(config)
 
-    extensions = ['cogs.Main', 'cogs.OwnerOnly', 'cogs.PersonalQuotes', 'cogs.Snipe']
+    extensions = ['cogs.Main', 'cogs.OwnerOnly', 'cogs.PersonalQuotes', 'cogs.Snipe', 'cogs.Highlights']
 
     for extension in extensions:
         bot.load_extension(extension)
