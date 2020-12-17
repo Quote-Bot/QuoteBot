@@ -139,6 +139,12 @@ class QuoteBot(commands.AutoShardedBot):
                     PRIMARY KEY (user_id, query)
                 )
             """)
+            await db.execute("""
+                CREATE TABLE
+                IF NOT EXISTS blocked (
+                    id INTEGER NOT NULL PRIMARY KEY
+                )
+            """)
             await db.commit()
 
     async def _update_presence(self):
@@ -172,7 +178,7 @@ class QuoteBot(commands.AutoShardedBot):
 
         print("QuoteBot is ready.")
 
-    async def fetch(self, sql: str, params: tuple, one=True, single_column=True):
+    async def fetch(self, sql: str, params: tuple = (), one=True, single_column=True):
         async with self.db_connect() as db:
             if single_column:
                 db.row_factory = lambda cur, row: row[0]
@@ -260,6 +266,8 @@ class QuoteBot(commands.AutoShardedBot):
         await self._update_presence()
 
     async def on_guild_join(self, guild):
+        if guild.id in await self.fetch("SELECT id FROM blocked", one=False):
+            return await guild.leave()
         await self._update_presence()
         try:
             async with self.db_connect() as db:
@@ -271,8 +279,8 @@ class QuoteBot(commands.AutoShardedBot):
     async def on_guild_remove(self, guild):
         await self._update_presence()
         async with self.db_connect() as db:
+            await db.execute("PRAGMA foreign_keys = ON")
             await db.execute("DELETE FROM guild WHERE id = ?", (guild.id,))
-            await db.execute("DELETE FROM personal_quote WHERE owner_id = ?", (guild.id,))
             await db.commit()
 
     async def on_message(self, msg):
@@ -282,18 +290,17 @@ class QuoteBot(commands.AutoShardedBot):
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound) or hasattr(ctx.command, 'on_error'):
             return
-        guild = getattr(ctx, 'guild', None)
         if isinstance(error := getattr(error, 'original', error), commands.NoPrivateMessage):
             try:
-                await ctx.author.send(f"{self.config['response_strings']['error']} {await self.localize(guild, 'META_command_noprivatemsg')}")
+                await ctx.author.send(f"{self.config['response_strings']['error']} {await self.localize(ctx.guild, 'META_command_noprivatemsg')}")
             except discord.HTTPException:
                 pass
         elif isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(f"{self.config['response_strings']['error']} {(await self.localize(guild, 'META_command_oncooldown')).format(round(error.retry_after, 1))}")
+            await ctx.send(f"{self.config['response_strings']['error']} {(await self.localize(ctx.guild, 'META_command_oncooldown')).format(round(error.retry_after, 1))}")
         elif isinstance(error, commands.CheckFailure):
-            await ctx.send(f"{self.config['response_strings']['error']} {await self.localize(guild, 'META_command_noperms')}")
+            await ctx.send(f"{self.config['response_strings']['error']} {await self.localize(ctx.guild, 'META_command_noperms')}")
         elif isinstance(error, commands.UserInputError):
-            await ctx.send(f"{self.config['response_strings']['error']} {(await self.localize(guild, 'META_command_inputerror')).format(f'{(await self.get_prefix(ctx.message))[-1]}help {ctx.command.qualified_name}')}")
+            await ctx.send(f"{self.config['response_strings']['error']} {(await self.localize(ctx.guild, 'META_command_inputerror')).format(f'{(await self.get_prefix(ctx.message))[-1]}help {ctx.command.qualified_name}')}")
         else:
             if isinstance(error, discord.HTTPException):
                 print(f'In {ctx.command.qualified_name}:', file=stderr)
