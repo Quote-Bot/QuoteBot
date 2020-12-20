@@ -32,7 +32,6 @@
     "MAIN_togglelinks_disabled": "**Цитиранје порука линком исклјучено.**",
     "MAIN_togglereaction_enabled": "**Цитиранје реакцијом је уклјучено.**",
     "MAIN_togglereaction_disabled": "**Цитиранје реакцијом је исклјучено.**",
-    "MAIN_clone_msglimit": "Можете само клонирати до 50 порука.",
     "PERSONAL_personallist_embedauthor": "Моји Цитати",
     "PERSONAL_personalremove_removed": "**Особни Цитат `{0}` уклонјен.**",
     "PERSONAL_personalclear_cleared": "**Уклонјени сви особни цитати.**",
