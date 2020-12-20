@@ -3,11 +3,17 @@
 
 # Quote Bot
 
+An easy way to quote messages with cross-server support!
 
 # Features
 
-## WIP*
-
+- Message link & ID quoting
+- Deleted/Edited message sniping
+- Message cloning
+- Personal quoting
+- Server quoting
+- Server-based language responses
+- Custom server-based prefix
 
 ---
 
