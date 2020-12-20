@@ -39,7 +39,7 @@ If you or someone you know want to add your own version of Quote to your/their g
         <a href="https://quote-bot.tk/selfhosting/linux">Linux Self-Hosting Guide</a>
       </td>
       <td>
-        <a href="https://quote-bot.tk/selfhosting/faq">FAQ (Frequently Asked Questions</a>
+        <a href="https://quote-bot.tk/selfhosting/faq">FAQ (Frequently Asked Questions)</a>
       </td>
     </tr>
   </table>
