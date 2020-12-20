@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="https://discordapp.com/api/guilds/741660208119545968/widget.png?style=shield" alt="Support Server" href="https://discord.gg/vkWyTGa" />
-  <img src="https://img.shields.io/website?style=flat-square&url=https%3A%2F%2Fquote-bot.tk" alt="Website Status" href="https://quote-bot.tk" />
+  <a href="https://discord.gg/vkWyTGa"><img src="https://discordapp.com/api/guilds/741660208119545968/widget.png?style=shield" alt="Support Server" /></a>
+  <a href="https://quote-bot.tk"><img src="https://img.shields.io/website?style=flat-square&url=https%3A%2F%2Fquote-bot.tk" alt="Website Status" /></a>
 </div>
 
 # Quote Bot
