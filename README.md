@@ -7,7 +7,9 @@
 
 An easy way to quote messages with cross-server support!
 
-# Features
+---
+
+## Features
 
 - Message link & ID quoting
 - Deleted/Edited message sniping
@@ -17,9 +19,9 @@ An easy way to quote messages with cross-server support!
 - Server-based language responses
 - Custom server-based prefix
 
----
+<br />
 
-### Self Host
+## Self Host
 
 Quote is completely open-source and self-hostable!
 
