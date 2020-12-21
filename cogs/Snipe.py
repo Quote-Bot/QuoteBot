@@ -40,23 +40,28 @@ class Snipe(commands.Cog):
         await ctx.trigger_typing()
         if not channel:
             channel = ctx.channel
-        if not ctx.author.permissions_in(channel).read_messages or not ctx.author.permissions_in(channel).read_message_history:
+        if (
+            not ctx.author.permissions_in(channel).read_messages
+            or not ctx.author.permissions_in(channel).read_message_history
+        ):
             return
 
         if guild := ctx.guild:
-            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))):
+            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and (
+                await self.bot.fetch("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))
+            ):
                 await ctx.message.delete()
             if not perms.send_messages:
                 return
             elif not perms.embed_links:
-                return await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'META_perms_noembed')}")
+                return await ctx.send(await self.bot.localize(guild, "META_perms_noembed", "error"))
 
         try:
             msg = (self.edits if edit else self.deletes)[channel.guild.id][channel.id]
         except KeyError:
-            await ctx.send(f"{self.bot.config['response_strings']['error']} {await self.bot.localize(guild, 'MAIN_quote_nomessage')}")
+            await ctx.send(await self.bot.localize(guild, "MAIN_quote_nomessage", "error"))
         else:
-            await self.bot.quote_message(msg, ctx.channel, ctx.author, 'snipe')
+            await self.bot.quote_message(msg, ctx.channel, ctx.author, "snipe")
 
     @commands.command()
     async def snipe(self, ctx, channel: discord.TextChannel = None):

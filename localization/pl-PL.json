@@ -25,7 +25,6 @@
     "MAIN_quote_embedfooter": "Zacytowane przez {0} z {1}",
     "MAIN_togglereaction_enabled": "**Cytowanie na reakcję aktywne.**",
     "MAIN_togglereaction_disabled": "**Cytowanie na reakcję nieaktywne.**",
-    "MAIN_clone_msglimit": "**Możesz sklonować tylko do 50 wiadomości.**",
     "PERSONAL_personalquote_notfound": "**Nieprawidłowy ID.**",
     "PERSONAL_personallist_noquotes": "**Nie ma żadnych Osobistych Cytatów.**",
     "PERSONAL_personallist_embedauthor": "Moje Cytaty",
