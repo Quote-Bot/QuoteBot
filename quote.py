@@ -1,6 +1,8 @@
 import json
 import os
 from functools import partial
+from sys import stderr
+from traceback import print_tb
 import re
 from sqlite3 import PARSE_COLNAMES, PARSE_DECLTYPES
 
@@ -30,15 +32,16 @@ class QuoteBotHelpCommand(commands.HelpCommand):
         ctx = self.context
         bot = ctx.bot
         prefix = (await get_prefix(bot, ctx.message))[-1]
-        embed = discord.Embed(color=ctx.guild.me.color.value or bot.config['default_embed_color'])
-        embed.add_field(name=await bot.localize(ctx.guild, 'HELPEMBED_links'),
-                        value=f"[{await bot.localize(ctx.guild, 'HELPEMBED_supportserver')}](https://discord.gg/vkWyTGa)\n"
-                              f"[{await bot.localize(ctx.guild, 'HELPEMBED_addme')}](https://discordapp.com/oauth2/authorize?client_id={bot.user.id}&permissions=537257984&scope=bot)\n"
-                              f"[{await bot.localize(ctx.guild, 'HELPEMBED_website')}](https://quote-bot.tk/)\n"
+        guild = ctx.guild
+        embed = discord.Embed(color=(guild and guild.me.color.value) or bot.config['default_embed_color'])
+        embed.add_field(name=await bot.localize(guild, 'HELPEMBED_links'),
+                        value=f"[{await bot.localize(guild, 'HELPEMBED_supportserver')}](https://discord.gg/vkWyTGa)\n"
+                              f"[{await bot.localize(guild, 'HELPEMBED_addme')}](https://discordapp.com/oauth2/authorize?client_id={bot.user.id}&permissions=537257984&scope=bot)\n"
+                              f"[{await bot.localize(guild, 'HELPEMBED_website')}](https://quote-bot.tk/)\n"
                               "[GitHub](https://github.com/Quote-Bot/QuoteBot)")
-        embed.add_field(name=await bot.localize(ctx.guild, 'HELPEMBED_commands'),
+        embed.add_field(name=await bot.localize(guild, 'HELPEMBED_commands'),
                         value=', '.join(f'`{prefix}{command}`' for command in sorted(c.name for c in bot.commands)))
-        embed.set_footer(text=(await bot.localize(ctx.guild, 'HELPEMBED_footer')).format(prefix))
+        embed.set_footer(text=(await bot.localize(guild, 'HELPEMBED_footer')).format(prefix))
         await ctx.send(embed=embed)
 
     async def send_cog_help(self, cog):
@@ -128,6 +131,20 @@ class QuoteBot(commands.AutoShardedBot):
                     PRIMARY KEY (owner_id, alias)
                 )
             """)
+            await db.execute("""
+                CREATE TABLE
+                IF NOT EXISTS highlight (
+                    user_id INTEGER NOT NULL,
+                    query TEXT NOT NULL,
+                    PRIMARY KEY (user_id, query)
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE
+                IF NOT EXISTS blocked (
+                    id INTEGER NOT NULL PRIMARY KEY
+                )
+            """)
             await db.commit()
 
     async def _update_presence(self):
@@ -161,7 +178,7 @@ class QuoteBot(commands.AutoShardedBot):
 
         print("QuoteBot is ready.")
 
-    async def fetch(self, sql: str, params: tuple, one=True, single_column=True):
+    async def fetch(self, sql: str, params: tuple = (), one=True, single_column=True):
         async with self.db_connect() as db:
             if single_column:
                 db.row_factory = lambda cur, row: row[0]
@@ -226,28 +243,31 @@ class QuoteBot(commands.AutoShardedBot):
         await db.execute("INSERT OR IGNORE INTO guild (id, prefix, language) VALUES (?, ?, ?)",
                          (guild.id, self.config['default_prefix'], self.config['default_lang']))
 
-    async def quote_message(self, msg, channel, user, type='quote'):
-        guild = getattr(channel, 'guild', None)
+    async def quote_message(self, msg, destination, quoted_by, type='quote'):
+        guild = getattr(destination, 'guild', None)
+        from_dm = isinstance(msg.channel, discord.DMChannel)
         if not msg.content and msg.embeds:
-            return await channel.send((await self.localize(guild, f'MAIN_{type}_rawembed')).format(user, msg.author, (self.user if isinstance(msg.channel, discord.DMChannel) else msg.channel).mention), embed=msg.embeds[0])
+            return await destination.send((await self.localize(guild, f'MAIN_{type}_rawembed')).format(quoted_by, msg.author, (self.user if from_dm else msg.channel).mention), embed=msg.embeds[0])
         embed = discord.Embed(description=msg.content if msg.guild == guild else msg.clean_content, color=msg.author.color.value or discord.Embed.Empty, timestamp=msg.created_at)
         embed.set_author(name=str(msg.author), url=msg.jump_url, icon_url=msg.author.avatar_url)
         if msg.attachments:
-            if not isinstance(msg.channel, discord.DMChannel) and msg.channel.is_nsfw() and (isinstance(channel, discord.DMChannel) or not channel.is_nsfw()):
+            if not from_dm and msg.channel.is_nsfw() and (isinstance(destination, (discord.DMChannel, discord.User)) or not destination.is_nsfw()):
                 embed.add_field(name=f"{await self.localize(guild, 'MAIN_quote_attachments')}",
                                 value=f":underage: {await self.localize(guild, 'MAIN_quote_nonsfw')}")
-            elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.gifv', '.webp', '.bmp')):
+            elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(('.jpg', '.jpeg', '.jfif', '.png', '.gif', '.gifv', '.webp', '.bmp', '.svg', '.tiff')):
                 embed.set_image(url=url)
             else:
                 embed.add_field(name=f"{await self.localize(guild, 'MAIN_quote_attachments')}",
                                 value='\n'.join(f'[{attachment.filename}]({attachment.url})' for attachment in msg.attachments))
-        embed.set_footer(text=(await self.localize(guild, f'MAIN_{type}_embedfooter')).format(user, self.user if isinstance(msg.channel, discord.DMChannel) else f'#{msg.channel.name}'))
-        await channel.send(embed=embed)
+        embed.set_footer(text=(await self.localize(guild, f'MAIN_{type}_embedfooter')).format(quoted_by, self.user if from_dm else f'#{msg.channel.name}'))
+        await destination.send(embed=embed)
 
     async def on_ready(self):
         await self._update_presence()
 
     async def on_guild_join(self, guild):
+        if guild.id in await self.fetch("SELECT id FROM blocked", one=False):
+            return await guild.leave()
         await self._update_presence()
         try:
             async with self.db_connect() as db:
@@ -259,13 +279,33 @@ class QuoteBot(commands.AutoShardedBot):
     async def on_guild_remove(self, guild):
         await self._update_presence()
         async with self.db_connect() as db:
+            await db.execute("PRAGMA foreign_keys = ON")
             await db.execute("DELETE FROM guild WHERE id = ?", (guild.id,))
-            await db.execute("DELETE FROM personal_quote WHERE owner_id = ?", (guild.id,))
             await db.commit()
 
     async def on_message(self, msg):
         if not msg.author.bot:
             await self.process_commands(msg)
+
+    async def on_command_error(self, ctx, error):
+        if isinstance(error, commands.CommandNotFound) or hasattr(ctx.command, 'on_error'):
+            return
+        if isinstance(error := getattr(error, 'original', error), commands.NoPrivateMessage):
+            try:
+                await ctx.author.send(f"{self.config['response_strings']['error']} {await self.localize(ctx.guild, 'META_command_noprivatemsg')}")
+            except discord.HTTPException:
+                pass
+        elif isinstance(error, commands.CommandOnCooldown):
+            await ctx.send(f"{self.config['response_strings']['error']} {(await self.localize(ctx.guild, 'META_command_oncooldown')).format(round(error.retry_after, 1))}")
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.send(f"{self.config['response_strings']['error']} {await self.localize(ctx.guild, 'META_command_noperms')}")
+        elif isinstance(error, commands.UserInputError):
+            await ctx.send(f"{self.config['response_strings']['error']} {(await self.localize(ctx.guild, 'META_command_inputerror')).format(f'{(await self.get_prefix(ctx.message))[-1]}help {ctx.command.qualified_name}')}")
+        else:
+            if isinstance(error, discord.HTTPException):
+                print(f'In {ctx.command.qualified_name}:', file=stderr)
+            print(f'{error.__class__.__name__}: {error}', file=stderr)
+            print_tb(error.__traceback__)
 
     async def close(self):
         print("QuoteBot closed.")
@@ -279,7 +319,7 @@ if __name__ == '__main__':
         config = json.load(json_data)
         bot = QuoteBot(config)
 
-    extensions = ['cogs.Main', 'cogs.OwnerOnly', 'cogs.PersonalQuotes', 'cogs.Snipe']
+    extensions = ['cogs.Main', 'cogs.OwnerOnly', 'cogs.PersonalQuotes', 'cogs.Snipe', 'cogs.Highlights']
 
     for extension in extensions:
         bot.load_extension(extension)

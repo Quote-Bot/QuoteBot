@@ -32,7 +32,6 @@
     "MAIN_togglelinks_disabled": "**Citering af beskeder med et link deaktiveret.**",
     "MAIN_togglereaction_enabled": "**Reaktion citering aktiveret.**",
     "MAIN_togglereaction_disabled": "**Reaktion citering deaktiveret.**",
-    "MAIN_clone_msglimit": "Du kan kun klonere op til 50 beskeder.",
     "PERSONAL_personallist_embedauthor": "Mine Citater",
     "PERSONAL_personalremove_removed": "**Personlig Citat `{0}` Fjernet.**",
     "PERSONAL_personalclear_cleared": "**Fjernet alle Personlige Citater.**",
