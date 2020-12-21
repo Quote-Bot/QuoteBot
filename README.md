@@ -1,24 +1,46 @@
-[![Support Server](https://discordapp.com/api/guilds/741660208119545968/widget.png?style=shield)](https://discord.gg/vkWyTGa)
-[![Website](https://img.shields.io/website?style=flat-square&url=https%3A%2F%2Fquote-bot.tk)](https://quote-bot.tk)
+<div align="center">
+  <a href="https://discord.gg/vkWyTGa"><img src="https://discordapp.com/api/guilds/741660208119545968/widget.png?style=shield" alt="Support Server" /></a>
+  <a href="https://quote-bot.tk"><img src="https://img.shields.io/website?style=flat-square&url=https%3A%2F%2Fquote-bot.tk" alt="Website Status" /></a>
+</div>
 
 # Quote Bot
 
-
-# Features
-
-## WIP*
-
+An easy way to quote messages with cross-server support!
 
 ---
 
-### Self Host
+## Features
+
+- Message link & ID quoting
+- Deleted/Edited message sniping
+- Message cloning
+- Personal quoting
+- Server quoting
+- Server-based language responses
+- Custom server-based prefix
+
+<br />
+
+## Self Host
 
 Quote is completely open-source and self-hostable!
 
 If you or someone you know want to add your own version of Quote to your/their guild, feel free to check out the self-hosting guides on our [website (https://quote-bot.tk)](https://quote-bot.tk)
 
-[Windows Self-Hosting Guide](https://quote-bot.tk/selfhosting/windows)
+<br />
 
-[Linux Self-Hosting Guide](https://quote-bot.tk/selfhosting/linux)
-
-[FAQ (Frequently Asked Questions)](https://quote-bot.tk/selfhosting/faq)
+<div align="center">
+  <table>
+    <tr>
+      <td>
+        <a href="https://quote-bot.tk/selfhosting/windows">Windows Self-Hosting Guide</a>
+      </td>
+      <td>
+        <a href="https://quote-bot.tk/selfhosting/linux">Linux Self-Hosting Guide</a>
+      </td>
+      <td>
+        <a href="https://quote-bot.tk/selfhosting/faq">FAQ (Frequently Asked Questions)</a>
+      </td>
+    </tr>
+  </table>
+</div>
