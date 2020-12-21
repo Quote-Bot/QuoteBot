@@ -1,4 +1,5 @@
 import re
+
 import discord
 from discord.ext import commands
 
@@ -103,7 +104,6 @@ class Highlights(commands.Cog):
         )
 
     @commands.command(aliases=["hlclear"])
-
     async def highlightclear(self, ctx):
         async with self.bot.db_connect() as db:
             await db.execute("DELETE FROM highlight WHERE user_id = ?", (ctx.author.id,))
