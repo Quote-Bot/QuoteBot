@@ -109,14 +109,22 @@ class Main(commands.Cog):
                 await ctx.send(await self.bot.localize(guild, "MAIN_quote_nomessage", "error"))
             else:
                 try:
-                    async for msg in ctx.channel.history(before=ctx.message):
+                    async for msg in ctx.channel.history(limit=150, before=ctx.message):
                         if msg.author.id == user.id:
                             return await self.bot.quote_message(msg, ctx.channel, ctx.author)
                 except QUOTE_EXCEPTIONS:
                     pass
                 await ctx.send(await self.bot.localize(guild, "MAIN_quote_nomessage", "error"))
         else:
-            await ctx.send(await self.bot.localize(guild, "MAIN_quote_inputerror", "error"))
+            try:
+                async for msg in ctx.channel.history(limit=150, before=ctx.message):
+                    if re.search(query, msg.content, re.IGNORECASE):
+                        return await self.bot.quote_message(msg, ctx.channel, ctx.author)
+            except QUOTE_EXCEPTIONS:
+                pass
+            except re.error:
+                return await ctx.send(await self.bot.localize(guild, "MAIN_quote_inputerror", "error"))
+            await ctx.send(await self.bot.localize(guild, "MAIN_quote_nomessage", "error"))
 
     @commands.command(aliases=["langs", "localizations"])
     async def languages(self, ctx):
