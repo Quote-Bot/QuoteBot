@@ -1,4 +1,5 @@
 <div align="center">
+  <a href="https://top.gg/bot/744509549842661418"><img src="https://top.gg/api/widget/upvotes/744509549842661418.svg" alt="Quote Bot on Top.gg" /></a>
   <a href="https://discord.gg/vkWyTGa"><img src="https://discordapp.com/api/guilds/741660208119545968/widget.png?style=shield" alt="Support Server" /></a>
   <a href="https://quote-bot.tk"><img src="https://img.shields.io/website?style=flat-square&url=https%3A%2F%2Fquote-bot.tk" alt="Website Status" /></a>
 </div>
