@@ -23,9 +23,9 @@ class OwnerOnly(commands.Cog):
 
     @commands.command()
     async def block(self, ctx, guild_id: int):
-        async with self.bot.db_connect() as db:
-            await db.execute("INSERT OR IGNORE INTO blocked VALUES (?)", (guild_id,))
-            await db.commit()
+        async with self.bot.db_connect() as con:
+            await con.execute("INSERT OR IGNORE INTO blocked VALUES (?)", (guild_id,))
+            await con.commit()
         await ctx.send(await self.bot.localize(ctx.guild, "OWNER_block_blocked", "success"))
         if guild := self.bot.get_guild(guild_id):
             await guild.leave()
@@ -37,12 +37,12 @@ class OwnerOnly(commands.Cog):
 
     @commands.command()
     async def unblock(self, ctx, guild_id: int):
-        async with self.bot.db_connect() as db:
-            async with db.execute("SELECT * FROM blocked WHERE id = ?", (guild_id,)) as cur:
+        async with self.bot.db_connect() as con:
+            async with con.execute("SELECT * FROM blocked WHERE id = ?", (guild_id,)) as cur:
                 if not await cur.fetchone():
                     return await ctx.send(await self.bot.localize(ctx.guild, "OWNER_unblock_notfound", "error"))
-            await db.execute("DELETE FROM blocked WHERE id = ?", (guild_id,))
-            await db.commit()
+            await con.execute("DELETE FROM blocked WHERE id = ?", (guild_id,))
+            await con.commit()
         await ctx.send(await self.bot.localize(ctx.guild, "OWNER_unblock_unblocked", "success"))
 
     @commands.command(aliases=["logout", "close"])

@@ -5,8 +5,8 @@ from discord.ext import commands
 class Snipe(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.deletes = dict()
-        self.edits = dict()
+        self.deletes = {}
+        self.edits = {}
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
@@ -53,7 +53,7 @@ class Snipe(commands.Cog):
                 await ctx.message.delete()
             if not perms.send_messages:
                 return
-            elif not perms.embed_links:
+            if not perms.embed_links:
                 return await ctx.send(await self.bot.localize(guild, "META_perms_noembed", "error"))
 
         try:

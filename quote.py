@@ -99,7 +99,7 @@ class QuoteBot(commands.AutoShardedBot):
             r"(?P<message_id>[0-9]{15,21})/?(?:$|\s)"
         )
 
-        self.responses = dict()
+        self.responses = {}
 
         for filename in os.listdir(path="localization"):
             with open(os.path.join("localization", filename), encoding="utf-8") as json_data:
@@ -108,11 +108,11 @@ class QuoteBot(commands.AutoShardedBot):
         self.loop.create_task(self.startup())
 
     async def _prepare_db(self):
-        async with self.db_connect() as db:
-            await db.execute("PRAGMA auto_vacuum = 1")
-            await db.execute("PRAGMA foreign_keys = ON")
-            await db.execute(
+        async with self.db_connect() as con:
+            await con.executescript(
                 f"""
+                PRAGMA auto_vacuum = 1;
+                PRAGMA foreign_keys = ON;
                 CREATE TABLE
                 IF NOT EXISTS guild (
                     id INTEGER PRIMARY KEY,
@@ -122,57 +122,37 @@ class QuoteBot(commands.AutoShardedBot):
                     quote_links INTEGER DEFAULT 0 NOT NULL,
                     delete_commands INTEGER DEFAULT 0 NOT NULL,
                     pin_channel INTEGER
-                )
-            """
-            )
-            await db.execute(
-                """
+                );
                 CREATE TABLE
                 IF NOT EXISTS channel (
                     id INTEGER NOT NULL PRIMARY KEY,
                     guild_id INTEGER NOT NULL REFERENCES guild ON DELETE CASCADE
-                )
-            """
-            )
-            await db.execute(
-                """
+                );
                 CREATE TABLE
                 IF NOT EXISTS message (
                     id INTEGER NOT NULL PRIMARY KEY,
                     channel_id INTEGER REFERENCES channel ON DELETE CASCADE
-                )
-            """
-            )
-            await db.execute(
-                """
+                );
                 CREATE TABLE
                 IF NOT EXISTS personal_quote (
                     owner_id INTEGER NOT NULL REFERENCES guild ON DELETE CASCADE,
                     alias TEXT NOT NULL,
                     message_id INTEGER NOT NULL REFERENCES message ON DELETE CASCADE,
                     PRIMARY KEY (owner_id, alias)
-                )
-            """
-            )
-            await db.execute(
-                """
+                );
                 CREATE TABLE
                 IF NOT EXISTS highlight (
                     user_id INTEGER NOT NULL,
                     query TEXT NOT NULL,
                     PRIMARY KEY (user_id, query)
-                )
-            """
-            )
-            await db.execute(
-                """
+                );
                 CREATE TABLE
                 IF NOT EXISTS blocked (
                     id INTEGER NOT NULL PRIMARY KEY
-                )
+                );
             """
             )
-            await db.commit()
+            await con.commit()
 
     async def _update_presence(self):
         await self.change_presence(
@@ -191,29 +171,29 @@ class QuoteBot(commands.AutoShardedBot):
         self.owner_ids.add((await self.application_info()).owner.id)
 
         if guilds := self.guilds:
-            async with self.db_connect() as db:
-                db.row_factory = lambda cur, row: row[0]
-                async with db.execute(
+            async with self.db_connect() as con:
+                con.row_factory = lambda cur, row: row[0]
+                async with con.execute(
                     f"SELECT id FROM guild WHERE id NOT IN ({', '.join(str(guild.id) for guild in guilds)})"
                 ) as cur:
                     removed_guild_ids = ", ".join(str(guild_id) for guild_id in await cur.fetchall())
                 if removed_guild_ids:
-                    await db.execute(f"DELETE FROM guild WHERE id IN ({removed_guild_ids})")
-                    await db.execute(f"DELETE FROM personal_quote WHERE owner_id IN ({removed_guild_ids})")
+                    await con.execute(f"DELETE FROM guild WHERE id IN ({removed_guild_ids})")
+                    await con.execute(f"DELETE FROM personal_quote WHERE owner_id IN ({removed_guild_ids})")
                 for guild in guilds:
                     try:
-                        await self.insert_new_guild(db, guild)
+                        await self.insert_new_guild(con, guild)
                     except Error:
                         continue
-                await db.commit()
+                await con.commit()
 
         print("QuoteBot is ready.")
 
     async def fetch(self, sql: str, params: tuple = (), one=True, single_column=True):
-        async with self.db_connect() as db:
+        async with self.db_connect() as con:
             if single_column:
-                db.row_factory = lambda cur, row: row[0]
-            async with db.execute(sql, params) as cur:
+                con.row_factory = lambda cur, row: row[0]
+            async with con.execute(sql, params) as cur:
                 return await cur.fetchone() if one else await cur.fetchall()
 
     async def localize(self, guild, query, response_type=None):
@@ -255,8 +235,8 @@ class QuoteBot(commands.AutoShardedBot):
                             continue
             raise
 
-    async def insert_new_guild(self, db, guild):
-        await db.execute(
+    async def insert_new_guild(self, con, guild):
+        await con.execute(
             "INSERT OR IGNORE INTO guild (id, prefix, language) VALUES (?, ?, ?)",
             (guild.id, self.config["default_prefix"], self.config["default_lang"]),
         )
@@ -311,18 +291,18 @@ class QuoteBot(commands.AutoShardedBot):
             return await guild.leave()
         await self._update_presence()
         try:
-            async with self.db_connect() as db:
-                await self.insert_new_guild(db, guild)
-                await db.commit()
+            async with self.db_connect() as con:
+                await self.insert_new_guild(con, guild)
+                await con.commit()
         except Error:
             pass
 
     async def on_guild_remove(self, guild):
         await self._update_presence()
-        async with self.db_connect() as db:
-            await db.execute("PRAGMA foreign_keys = ON")
-            await db.execute("DELETE FROM guild WHERE id = ?", (guild.id,))
-            await db.commit()
+        async with self.db_connect() as con:
+            await con.execute("PRAGMA foreign_keys = ON")
+            await con.execute("DELETE FROM guild WHERE id = ?", (guild.id,))
+            await con.commit()
 
     async def on_message(self, msg):
         if not msg.author.bot:
@@ -362,16 +342,15 @@ class QuoteBot(commands.AutoShardedBot):
 
 if __name__ == "__main__":
     print("Starting QuoteBot...")
-    with open(os.path.join("configs", "credentials.json")) as json_data:
-        config = json.load(json_data)
-        bot = QuoteBot(config)
+    with open(os.path.join("configs", "credentials.json")) as config_data:
+        quote_bot = QuoteBot(json.load(config_data))
 
     extensions = ["cogs.Main", "cogs.OwnerOnly", "cogs.PersonalQuotes", "cogs.Snipe", "cogs.Highlights"]
 
     for extension in extensions:
-        bot.load_extension(extension)
+        quote_bot.load_extension(extension)
 
-    if bot.config["botlog_webhook_url"]:
-        bot.load_extension("cogs.Botlog")
+    if quote_bot.config["botlog_webhook_url"]:
+        quote_bot.load_extension("cogs.Botlog")
 
-    bot.run(config["token"])
+    quote_bot.run(quote_bot.config["token"])

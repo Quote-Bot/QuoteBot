@@ -15,8 +15,8 @@ MARKDOWN = re.compile(
         r"|__.*?__"  # __underline__
         r"|~~.*?~~"  # ~~strikethrough~~
         r"|\|\|.*?\|\|"  # ||spoiler||
-        r"|<https?://\S*?>"
-    ),  # <suppressed links>
+        r"|<https?://\S*?>"  # <suppressed links>
+    ),
     re.DOTALL | re.MULTILINE,
 )
 QUOTE_EXCEPTIONS = (discord.NotFound, discord.Forbidden, discord.HTTPException, commands.BadArgument)
@@ -140,12 +140,12 @@ class Main(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def togglereaction(self, ctx):
-        async with self.bot.db_connect() as db:
+        async with self.bot.db_connect() as con:
             new = int(
-                not (await (await db.execute("SELECT on_reaction FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0]
+                not (await (await con.execute("SELECT on_reaction FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0]
             )
-            await db.execute("UPDATE guild SET on_reaction = ? WHERE id = ?", (new, ctx.guild.id))
-            await db.commit()
+            await con.execute("UPDATE guild SET on_reaction = ? WHERE id = ?", (new, ctx.guild.id))
+            await con.commit()
         await ctx.send(
             await self.bot.localize(
                 ctx.guild, "MAIN_togglereaction_enabled" if new else "MAIN_togglereaction_disabled", "success"
@@ -156,12 +156,12 @@ class Main(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def togglelinks(self, ctx):
-        async with self.bot.db_connect() as db:
+        async with self.bot.db_connect() as con:
             new = int(
-                not (await (await db.execute("SELECT quote_links FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0]
+                not (await (await con.execute("SELECT quote_links FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[0]
             )
-            await db.execute("UPDATE guild SET quote_links = ? WHERE id = ?", (new, ctx.guild.id))
-            await db.commit()
+            await con.execute("UPDATE guild SET quote_links = ? WHERE id = ?", (new, ctx.guild.id))
+            await con.commit()
         await ctx.send(
             await self.bot.localize(ctx.guild, "MAIN_togglelinks_enabled" if new else "MAIN_togglelinks_disabled", "success")
         )
@@ -170,16 +170,16 @@ class Main(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def toggledelete(self, ctx):
-        async with self.bot.db_connect() as db:
+        async with self.bot.db_connect() as con:
             new = int(
-                not (await (await db.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone())[
-                    0
-                ]
+                not (
+                    await (await con.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone()
+                )[0]
             )
             if new and not ctx.me.permissions_in(ctx.channel).manage_messages:
                 return await ctx.send(await self.bot.localize(ctx.guild, "META_perms_nomanagemessages", "error"))
-            await db.execute("UPDATE guild SET delete_commands = ? WHERE id = ?", (new, ctx.guild.id))
-            await db.commit()
+            await con.execute("UPDATE guild SET delete_commands = ? WHERE id = ?", (new, ctx.guild.id))
+            await con.commit()
         await ctx.send(
             await self.bot.localize(
                 ctx.guild, "MAIN_toggledelete_enabled" if new else "MAIN_toggledelete_disabled", "success"
@@ -192,9 +192,9 @@ class Main(commands.Cog):
     async def setprefix(self, ctx, prefix: str):
         if len(prefix) > 3:
             return await ctx.send(await self.bot.localize(ctx.guild, "MAIN_setprefix_toolong", "error"))
-        async with self.bot.db_connect() as db:
-            await db.execute("UPDATE guild SET prefix = ? WHERE id = ?", (prefix, ctx.guild.id))
-            await db.commit()
+        async with self.bot.db_connect() as con:
+            await con.execute("UPDATE guild SET prefix = ? WHERE id = ?", (prefix, ctx.guild.id))
+            await con.commit()
         await ctx.send((await self.bot.localize(ctx.guild, "MAIN_setprefix_set", "success")).format(prefix))
 
     @commands.command(aliases=["language", "setlang", "lang", "localize"])
@@ -203,9 +203,9 @@ class Main(commands.Cog):
     async def setlanguage(self, ctx, language: str):
         if language not in self.bot.responses:
             return await ctx.send(await self.bot.localize(ctx.guild, "MAIN_setlanguage_notavailable", "error"))
-        async with self.bot.db_connect() as db:
-            await db.execute("UPDATE guild SET language = ? WHERE id = ?", (language, ctx.guild.id))
-            await db.commit()
+        async with self.bot.db_connect() as con:
+            await con.execute("UPDATE guild SET language = ? WHERE id = ?", (language, ctx.guild.id))
+            await con.commit()
         await ctx.send((await self.bot.localize(ctx.guild, "MAIN_setlanguage_set", "success")).format(language))
 
     @commands.command()

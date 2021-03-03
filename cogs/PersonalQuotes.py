@@ -8,40 +8,40 @@ class PersonalQuotes(commands.Cog):
 
     async def send_quote(self, ctx, alias: str, server=False):
         await ctx.trigger_typing()
-        async with self.bot.db_connect() as db:
+        async with self.bot.db_connect() as con:
             if (
                 (guild := ctx.guild)
                 and guild.me.permissions_in(ctx.channel).manage_messages
-                and (await (await db.execute("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]
+                and (await (await con.execute("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]
             ):
                 await ctx.message.delete()
             if quoted := await (
-                await db.execute(
+                await con.execute(
                     "SELECT message_id FROM personal_quote WHERE owner_id = ? AND alias = ?",
                     (owner_id := ctx.guild.id if server else ctx.author.id, alias),
                 )
             ).fetchone():
                 msg_dict = {"message_id": (msg_id := quoted[0])}
                 if channel_id := (
-                    await (await db.execute("SELECT channel_id FROM message WHERE id = ?", (msg_id,))).fetchone()
+                    await (await con.execute("SELECT channel_id FROM message WHERE id = ?", (msg_id,))).fetchone()
                 )[0]:
                     msg_dict["channel_id"] = channel_id
                     msg_dict["guild_id"] = (
-                        await (await db.execute("SELECT guild_id FROM channel WHERE id = ?", (channel_id,))).fetchone()
+                        await (await con.execute("SELECT guild_id FROM channel WHERE id = ?", (channel_id,))).fetchone()
                     )[0]
                 else:
                     msg_dict["dm"] = True
                 try:
                     msg = await self.bot.get_message(ctx, msg_dict)
                 except (discord.NotFound, discord.Forbidden, discord.HTTPException, commands.BadArgument) as error:
-                    await db.execute("PRAGMA foreign_keys = ON")
+                    await con.execute("PRAGMA foreign_keys = ON")
                     if isinstance(error, commands.ChannelNotFound):
-                        await db.execute("DELETE FROM channel WHERE id = ?", (channel_id,))
+                        await con.execute("DELETE FROM channel WHERE id = ?", (channel_id,))
                     elif isinstance(error, commands.MessageNotFound):
-                        await db.execute("DELETE FROM message WHERE id = ?", (msg_id,))
+                        await con.execute("DELETE FROM message WHERE id = ?", (msg_id,))
                     else:
-                        await db.execute("DELETE FROM personal_quote WHERE owner_id = ? AND alias = ?", (owner_id, alias))
-                    await db.commit()
+                        await con.execute("DELETE FROM personal_quote WHERE owner_id = ? AND alias = ?", (owner_id, alias))
+                    await con.commit()
                     if isinstance(error, discord.Forbidden):
                         return await ctx.send(await self.bot.localize(ctx.guild, "MAIN_quote_noperms", "error"))
                     return await ctx.send(await self.bot.localize(ctx.guild, "MAIN_quote_nomessage", "error"))
@@ -80,8 +80,8 @@ class PersonalQuotes(commands.Cog):
                 return await ctx.send(await self.bot.localize(ctx.guild, "MAIN_quote_noperms", "error"))
             except (discord.NotFound, discord.HTTPException, commands.BadArgument):
                 return await ctx.send(await self.bot.localize(ctx.guild, "MAIN_quote_nomessage", "error"))
-            async with self.bot.db_connect() as db:
-                async with db.execute(
+            async with self.bot.db_connect() as con:
+                async with con.execute(
                     "SELECT COUNT(alias) FROM personal_quote WHERE owner_id = ?",
                     (owner_id := ctx.guild.id if server else ctx.author.id,),
                 ) as cur:
@@ -92,13 +92,13 @@ class PersonalQuotes(commands.Cog):
                             )
                         )
                 if msg.guild:
-                    await db.execute("INSERT OR IGNORE INTO channel VALUES (?, ?)", (msg.channel.id, msg.guild.id))
-                await db.execute(
+                    await con.execute("INSERT OR IGNORE INTO channel VALUES (?, ?)", (msg.channel.id, msg.guild.id))
+                await con.execute(
                     "INSERT OR IGNORE INTO message VALUES (?, ?)",
                     (msg.id, None if isinstance(msg.channel, discord.DMChannel) else msg.channel.id),
                 )
-                await db.execute("INSERT OR REPLACE INTO personal_quote VALUES (?, ?, ?)", (owner_id, alias, msg.id))
-                await db.commit()
+                await con.execute("INSERT OR REPLACE INTO personal_quote VALUES (?, ?, ?)", (owner_id, alias, msg.id))
+                await con.commit()
             return await ctx.send(
                 (
                     await self.bot.localize(ctx.guild, f"PERSONAL_{'server' if server else 'personal'}set_set", "success")
@@ -107,30 +107,30 @@ class PersonalQuotes(commands.Cog):
         await ctx.send(await self.bot.localize(ctx.guild, "MAIN_quote_nomessage", "error"))
 
     async def copy_quote(self, ctx, owner_id: int, alias: str, server=False):
-        async with self.bot.db_connect() as db:
+        async with self.bot.db_connect() as con:
             if (
                 await (
-                    await db.execute(
+                    await con.execute(
                         "SELECT message_id FROM personal_quote WHERE owner_id = ? AND alias = ?",
                         (new_owner_id := ctx.guild.id if server else ctx.author.id, alias),
                     )
                 ).fetchone()
                 or (
                     await (
-                        await db.execute("SELECT COUNT(alias) FROM personal_quote WHERE owner_id = ?", (new_owner_id,))
+                        await con.execute("SELECT COUNT(alias) FROM personal_quote WHERE owner_id = ?", (new_owner_id,))
                     ).fetchone()
                 )[0]
                 < 50
             ):
                 if copied := await (
-                    await db.execute(
+                    await con.execute(
                         "SELECT message_id FROM personal_quote WHERE owner_id = ? AND alias = ?", (owner_id, alias)
                     )
                 ).fetchone():
-                    await db.execute(
+                    await con.execute(
                         "INSERT OR REPLACE INTO personal_quote VALUES (?, ?, ?)", (new_owner_id, alias, copied[0])
                     )
-                    await db.commit()
+                    await con.commit()
                     return await ctx.send(
                         content=(
                             await self.bot.localize(
@@ -146,15 +146,15 @@ class PersonalQuotes(commands.Cog):
         await ctx.send(await self.bot.localize(ctx.guild, "PERSONAL_personalquote_notfound", "error"))
 
     async def remove_quote(self, ctx, alias: str, server=False):
-        async with self.bot.db_connect() as db:
+        async with self.bot.db_connect() as con:
             if await (
-                await db.execute(
+                await con.execute(
                     "SELECT * FROM personal_quote WHERE owner_id = ? AND alias = ?",
                     (owner_id := ctx.guild.id if server else ctx.author.id, alias),
                 )
             ).fetchone():
-                await db.execute("DELETE FROM personal_quote WHERE owner_id = ? AND alias = ?", (owner_id, alias))
-                await db.commit()
+                await con.execute("DELETE FROM personal_quote WHERE owner_id = ? AND alias = ?", (owner_id, alias))
+                await con.commit()
                 await ctx.send(
                     (
                         await self.bot.localize(
@@ -166,26 +166,26 @@ class PersonalQuotes(commands.Cog):
                 await ctx.send(await self.bot.localize(ctx.guild, "PERSONAL_personalquote_notfound", "error"))
 
     async def clear_quotes(self, ctx, server=False):
-        async with self.bot.db_connect() as db:
-            await db.execute("DELETE FROM personal_quote WHERE owner_id = ?", (ctx.guild.id if server else ctx.author.id,))
-            await db.commit()
+        async with self.bot.db_connect() as con:
+            await con.execute("DELETE FROM personal_quote WHERE owner_id = ?", (ctx.guild.id if server else ctx.author.id,))
+            await con.commit()
         await ctx.send(
             await self.bot.localize(ctx.guild, f"PERSONAL_{'server' if server else 'personal'}clear_cleared", "success")
         )
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel):
-        async with self.bot.db_connect() as db:
-            await db.execute("PRAGMA foreign_keys = ON")
-            await db.execute("DELETE FROM channel WHERE id = ?", (channel.id,))
-            await db.commit()
+        async with self.bot.db_connect() as con:
+            await con.execute("PRAGMA foreign_keys = ON")
+            await con.execute("DELETE FROM channel WHERE id = ?", (channel.id,))
+            await con.commit()
 
     @commands.Cog.listener()
     async def on_message_delete(self, msg):
-        async with self.bot.db_connect() as db:
-            await db.execute("PRAGMA foreign_keys = ON")
-            await db.execute("DELETE FROM message WHERE id = ?", (msg.id,))
-            await db.commit()
+        async with self.bot.db_connect() as con:
+            await con.execute("PRAGMA foreign_keys = ON")
+            await con.execute("DELETE FROM message WHERE id = ?", (msg.id,))
+            await con.commit()
 
     @commands.command(aliases=["personal", "pquote", "pq"])
     async def personalquote(self, ctx, alias: str):
