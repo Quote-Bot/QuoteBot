@@ -186,6 +186,28 @@ class Main(commands.Cog):
             )
         )
 
+    @commands.command(aliases=["snipepermission", "snipeperms"])
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
+    async def togglesnipepermission(self, ctx):
+        async with self.bot.db_connect() as con:
+            new = int(
+                not (
+                    await (
+                        await con.execute("SELECT snipe_requires_manage_messages FROM guild WHERE id = ?", (ctx.guild.id,))
+                    ).fetchone()
+                )[0]
+            )
+            if new and not ctx.me.permissions_in(ctx.channel).manage_messages:
+                return await ctx.send(await self.bot.localize(ctx.guild, "META_perms_nomanagemessages", "error"))
+            await con.execute("UPDATE guild SET snipe_requires_manage_messages = ? WHERE id = ?", (new, ctx.guild.id))
+            await con.commit()
+        await ctx.send(
+            await self.bot.localize(
+                ctx.guild, "MAIN_togglesnipepermission_enabled" if new else "MAIN_togglesnipepermission_disabled", "success"
+            )
+        )
+
     @commands.command(aliases=["prefix"])
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)

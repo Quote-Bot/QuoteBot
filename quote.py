@@ -121,6 +121,7 @@ class QuoteBot(commands.AutoShardedBot):
                     on_reaction INTEGER DEFAULT 0 NOT NULL,
                     quote_links INTEGER DEFAULT 0 NOT NULL,
                     delete_commands INTEGER DEFAULT 0 NOT NULL,
+                    snipe_requires_manage_messages INTEGER DEFAULT 0 NOT NULL,
                     pin_channel INTEGER
                 );
                 CREATE TABLE
