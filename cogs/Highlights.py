@@ -30,7 +30,7 @@ class Highlights(commands.Cog):
                     try:
                         await self.bot.quote_message(msg, member, member, "highlight")
                     except discord.Forbidden:
-                        await con.execute("DELETE FROM highlight WHERE user_id = ?", user_id)
+                        await con.execute("DELETE FROM highlight WHERE user_id = ?", (user_id,))
                     except discord.HTTPException:
                         continue
             await con.commit()
