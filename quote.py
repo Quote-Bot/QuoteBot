@@ -306,7 +306,7 @@ class QuoteBot(commands.AutoShardedBot):
             await con.commit()
 
     async def on_message(self, msg):
-        if not msg.author.bot:
+        if not msg.author.bot and msg.channel.permissions_for(msg.guild.me).send_messages:
             await self.process_commands(msg)
 
     async def on_command_error(self, ctx, error):
