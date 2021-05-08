@@ -18,7 +18,7 @@ class Highlights(commands.Cog):
             quoted = set()
             for user_id, query in highlights:
                 if not self.bot.get_user(user_id):
-                    await con.execute("DELETE FROM highlight WHERE user_id = ?", user_id)
+                    await con.execute("DELETE FROM highlight WHERE user_id = ?", (user_id,))
                 elif (
                     user_id not in quoted
                     and user_id != msg.author.id
