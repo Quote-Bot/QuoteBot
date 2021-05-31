@@ -252,10 +252,10 @@ class Main(commands.Cog):
                         await webhook_copy(webhook, msg, clean_content)
                     except ignored:
                         break
-        try:
-            await webhook.delete()
-        except ignored:
-            pass
+            try:
+                await webhook.delete()
+            except ignored:
+                pass
 
 
 def setup(bot):
