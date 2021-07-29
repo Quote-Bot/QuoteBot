@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+"discord.py" = {editable = true, git = "https://github.com/Rapptz/discord.py.git"}
+aiohttp = "*"
+aiosqlite = "*"
+
+[dev-packages]
+black = "*"
+isort = "*"
+pre-commit = "*"
+
+[requires]
+python_version = "3.9"
+
+[scripts]
+bot = "python quote.py"
+
+[pipenv]
+allow_prereleases = true

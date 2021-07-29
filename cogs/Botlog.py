@@ -11,7 +11,7 @@ class Events(commands.Cog):
             return
         await (bot := self.bot).webhook.send(
             username=bot.user.name,
-            avatar_url=bot.user.avatar_url,
+            avatar_url=bot.user.avatar.url,
             content=(await bot.localize(bot.webhook.guild, "BOTLOG_guild_join", "guild_add")).format(
                 guild.name.replace("`", "").replace("*", ""), guild.id, guild.member_count, len(bot.guilds)
             ),
@@ -23,7 +23,7 @@ class Events(commands.Cog):
             return
         await (bot := self.bot).webhook.send(
             username=bot.user.name,
-            avatar_url=bot.user.avatar_url,
+            avatar_url=bot.user.avatar.url,
             content=(await bot.localize(bot.webhook.guild, "BOTLOG_guild_remove", "guild_remove")).format(
                 guild.name.replace("`", "").replace("*", ""), guild.id, guild.member_count, len(bot.guilds)
             ),

@@ -156,9 +156,10 @@ class QuoteBot(commands.AutoShardedBot):
             await con.commit()
 
     async def _update_presence(self):
+        guild_count = len(self.guilds)
         await self.change_presence(
             activity=discord.Activity(
-                name=f"messages in {'1 server' if (guild_count := len(self.guilds)) == 1 else f'{guild_count} servers'}",
+                name=f"{guild_count} server{'s' if guild_count != 1 else ''} | >help",
                 type=discord.ActivityType.watching,
             )
         )
@@ -166,7 +167,7 @@ class QuoteBot(commands.AutoShardedBot):
     async def startup(self):
         self.session = ClientSession(loop=self.loop)
         if botlog_webhook_url := self.config["botlog_webhook_url"]:
-            self.webhook = discord.Webhook.from_url(botlog_webhook_url, adapter=discord.AsyncWebhookAdapter(self.session))
+            self.webhook = discord.Webhook.from_url(botlog_webhook_url, session=self.session)
         await self._prepare_db()
         await self.wait_until_ready()
         self.owner_ids.add((await self.application_info()).owner.id)
@@ -257,7 +258,7 @@ class QuoteBot(commands.AutoShardedBot):
             color=msg.author.color.value or discord.Embed.Empty,
             timestamp=msg.created_at,
         )
-        embed.set_author(name=str(msg.author), url=msg.jump_url, icon_url=msg.author.avatar_url)
+        embed.set_author(name=str(msg.author), url=msg.jump_url, icon_url=msg.author.avatar.url)
         if msg.attachments:
             if (
                 not from_dm

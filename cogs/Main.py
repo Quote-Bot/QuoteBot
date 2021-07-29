@@ -25,7 +25,7 @@ QUOTE_EXCEPTIONS = (discord.NotFound, discord.Forbidden, discord.HTTPException, 
 async def webhook_copy(webhook, msg, clean_content=False):
     await webhook.send(
         username=getattr(msg.author, "nick", False) or msg.author.name,
-        avatar_url=msg.author.avatar_url,
+        avatar_url=msg.author.avatar.url,
         content=msg.clean_content if clean_content else msg.content,
         files=[await attachment.to_file() for attachment in msg.attachments],
         embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == "rich" else None),
@@ -55,6 +55,14 @@ class Main(commands.Cog):
                 pass
 
     @commands.Cog.listener()
+    async def on_thread_join(self, thread):
+        if not thread.me:
+            try:
+                await thread.join()
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+
+    @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
         if payload.emoji.name != "💬" or not await self.bot.fetch(
             "SELECT on_reaction FROM guild WHERE id = ?", (payload.guild_id,)
@@ -62,9 +70,9 @@ class Main(commands.Cog):
             return
         guild = self.bot.get_guild(payload.guild_id)
         channel = guild.get_channel(payload.channel_id)
-        perms = guild.me.permissions_in(channel)
+        perms = channel.permissions_for(guild.me)
         if (
-            payload.member.permissions_in(channel).send_messages
+            channel.permissions_for(payload.member).send_messages
             and perms.read_message_history
             and perms.send_messages
             and perms.embed_links
@@ -79,7 +87,7 @@ class Main(commands.Cog):
     async def quote(self, ctx, *, query: str = None):
         await ctx.trigger_typing()
         if guild := ctx.guild:
-            if (perms := guild.me.permissions_in(ctx.channel)).manage_messages and await self.bot.fetch(
+            if (perms := ctx.channel.permissions_for(ctx.me)).manage_messages and await self.bot.fetch(
                 "SELECT delete_commands FROM guild WHERE id = ?", (guild.id,)
             ):
                 await ctx.message.delete()
@@ -176,7 +184,7 @@ class Main(commands.Cog):
                     await (await con.execute("SELECT delete_commands FROM guild WHERE id = ?", (ctx.guild.id,))).fetchone()
                 )[0]
             )
-            if new and not ctx.me.permissions_in(ctx.channel).manage_messages:
+            if new and not ctx.channel.permissions_for(ctx.me).manage_messages:
                 return await ctx.send(await self.bot.localize(ctx.guild, "META_perms_nomanagemessages", "error"))
             await con.execute("UPDATE guild SET delete_commands = ? WHERE id = ?", (new, ctx.guild.id))
             await con.commit()
@@ -198,7 +206,7 @@ class Main(commands.Cog):
                     ).fetchone()
                 )[0]
             )
-            if new and not ctx.me.permissions_in(ctx.channel).manage_messages:
+            if new and not ctx.channel.permissions_for(ctx.me).manage_messages:
                 return await ctx.send(await self.bot.localize(ctx.guild, "META_perms_nomanagemessages", "error"))
             await con.execute("UPDATE guild SET snipe_requires_manage_messages = ? WHERE id = ?", (new, ctx.guild.id))
             await con.commit()
@@ -233,7 +241,7 @@ class Main(commands.Cog):
     @commands.command()
     @commands.has_permissions(manage_guild=True)
     async def clone(self, ctx, msg_limit: int, channel: discord.TextChannel):
-        if not ctx.guild.me.permissions_in(ctx.channel).manage_webhooks:
+        if not ctx.channel.permissions_for(ctx.me).manage_webhooks:
             await ctx.send(await self.bot.localize(ctx.guild, "META_perms_nowebhook", "error"))
         elif msg_limit < 1 or msg_limit > 50:
             await ctx.send(await self.bot.localize(ctx.guild, "MAIN_clone_msglimit", "error"))

@@ -11,7 +11,7 @@ class PersonalQuotes(commands.Cog):
         async with self.bot.db_connect() as con:
             if (
                 (guild := ctx.guild)
-                and guild.me.permissions_in(ctx.channel).manage_messages
+                and ctx.channel.permissions_for(ctx.me).manage_messages
                 and (await (await con.execute("SELECT delete_commands FROM guild WHERE id = ?", (guild.id,))).fetchone())[0]
             ):
                 await ctx.message.delete()
@@ -58,7 +58,7 @@ class PersonalQuotes(commands.Cog):
             )
             embed.set_author(
                 name=await self.bot.localize(ctx.guild, f"PERSONAL_{'server' if server else 'personal'}list_embedauthor"),
-                icon_url=ctx.author.avatar_url,
+                icon_url=ctx.author.avatar.url,
             )
             await ctx.send(embed=embed)
         else:

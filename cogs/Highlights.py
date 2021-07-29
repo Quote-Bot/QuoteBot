@@ -74,7 +74,7 @@ class Highlights(commands.Cog):
             )
             embed.set_author(
                 name=await self.bot.localize(ctx.guild, "HIGHLIGHTS_highlightlist_embedauthor"),
-                icon_url=ctx.author.avatar_url,
+                icon_url=ctx.author.avatar.url,
             )
             await ctx.send(embed=embed)
         else:
