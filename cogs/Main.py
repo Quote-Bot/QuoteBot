@@ -78,7 +78,9 @@ class Main(commands.Cog):
             and perms.embed_links
         ):
             try:
-                msg = channel_or_thread._state._get_message(payload.message_id) or await channel_or_thread.fetch_message(payload.message_id)
+                msg = channel_or_thread._state._get_message(payload.message_id) or await channel_or_thread.fetch_message(
+                    payload.message_id
+                )
                 await self.bot.quote_message(msg, channel_or_thread, payload.member)
             except QUOTE_EXCEPTIONS:
                 pass
