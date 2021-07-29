@@ -69,17 +69,17 @@ class Main(commands.Cog):
         ):
             return
         guild = self.bot.get_guild(payload.guild_id)
-        channel = guild.get_channel(payload.channel_id)
-        perms = channel.permissions_for(guild.me)
+        channel_or_thread = guild.get_channel(payload.channel_id) or guild.get_thread(payload.channel_id)
+        perms = channel_or_thread.permissions_for(guild.me)
         if (
-            channel.permissions_for(payload.member).send_messages
+            channel_or_thread.permissions_for(payload.member).send_messages
             and perms.read_message_history
             and perms.send_messages
             and perms.embed_links
         ):
             try:
-                msg = channel._state._get_message(payload.message_id) or await channel.fetch_message(payload.message_id)
-                await self.bot.quote_message(msg, channel, payload.member)
+                msg = channel_or_thread._state._get_message(payload.message_id) or await channel_or_thread.fetch_message(payload.message_id)
+                await self.bot.quote_message(msg, channel_or_thread, payload.member)
             except QUOTE_EXCEPTIONS:
                 pass
 
