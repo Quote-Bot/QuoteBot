@@ -214,7 +214,9 @@ class QuoteBot(commands.AutoShardedBot):
         if channel_id := msg_dict.get("channel_id"):
             channel_id = int(channel_id)
             if guild_id := msg_dict.get("guild_id"):
-                if not (guild := self.get_guild(int(guild_id))) or not (channel := guild.get_channel(channel_id)):
+                if not (guild := self.get_guild(int(guild_id))) or not (
+                    channel := guild.get_channel(channel_id) or guild.get_thread(channel_id)
+                ):
                     raise commands.ChannelNotFound(channel_id)
             elif not (channel := self.get_channel(channel_id)):
                 raise commands.ChannelNotFound(channel_id)
