@@ -309,7 +309,7 @@ class QuoteBot(commands.AutoShardedBot):
             await con.commit()
 
     async def on_message(self, msg):
-        if not msg.author.bot and msg.channel.permissions_for(msg.guild.me).send_messages:
+        if not msg.guild or msg.channel.permissions_for(msg.guild.me).send_messages:
             await self.process_commands(msg)
 
     async def on_command_error(self, ctx, error):
@@ -349,12 +349,10 @@ if __name__ == "__main__":
     with open(os.path.join("configs", "credentials.json")) as config_data:
         quote_bot = QuoteBot(json.load(config_data))
 
-    extensions = ["cogs.Main", "cogs.OwnerOnly", "cogs.PersonalQuotes", "cogs.Snipe", "cogs.Highlights"]
-
-    for extension in extensions:
-        quote_bot.load_extension(extension)
+    for extension in ("main", "owneronly", "savedquotes", "snipe", "highlights"):
+        quote_bot.load_extension(f"cogs.{extension}")
 
     if quote_bot.config["botlog_webhook_url"]:
-        quote_bot.load_extension("cogs.Botlog")
+        quote_bot.load_extension("cogs.botlog")
 
     quote_bot.run(quote_bot.config["token"])

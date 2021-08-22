@@ -2,20 +2,21 @@ import discord
 from discord.ext import commands
 
 
-async def snipe_permission_check(ctx):
-    requires_manage_messages = await ctx.bot.fetch(
-        "SELECT snipe_requires_manage_messages FROM guild WHERE id = ?", (ctx.guild.id,)
-    )
-    if not requires_manage_messages or ctx.channel.permissions_for(ctx.author).manage_messages:
-        return True
-    raise commands.MissingPermissions(("manage_messages",))
-
-
 class Snipe(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.deletes = {}
         self.edits = {}
+
+    async def cog_check(self, ctx):
+        if not ctx.guild:
+            return True
+        requires_manage_messages = await ctx.bot.fetch(
+            "SELECT snipe_requires_manage_messages FROM guild WHERE id = ?", (ctx.guild.id,)
+        )
+        if not requires_manage_messages or ctx.channel.permissions_for(ctx.author).manage_messages:
+            return True
+        raise commands.MissingPermissions(("manage_messages",))
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
@@ -73,13 +74,15 @@ class Snipe(commands.Cog):
             await self.bot.quote_message(msg, ctx.channel, ctx.author, "snipe")
 
     @commands.command()
-    @commands.check(snipe_permission_check)
     async def snipe(self, ctx, channel: discord.TextChannel = None):
+        if channel is None and not ctx.guild:
+            raise commands.NoPrivateMessage()
         await self.snipe_msg(ctx, channel)
 
     @commands.command()
-    @commands.check(snipe_permission_check)
     async def snipeedit(self, ctx, channel: discord.TextChannel = None):
+        if channel is None and not ctx.guild:
+            raise commands.NoPrivateMessage()
         await self.snipe_msg(ctx, channel, True)
 
 

@@ -241,6 +241,7 @@ class Main(commands.Cog):
         await ctx.send((await self.bot.localize(ctx.guild, "MAIN_setlanguage_set", "success")).format(language))
 
     @commands.command()
+    @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def clone(self, ctx, msg_limit: int, channel: discord.TextChannel):
         if not ctx.channel.permissions_for(ctx.me).manage_webhooks:

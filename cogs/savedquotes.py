@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 
-class PersonalQuotes(commands.Cog):
+class SavedQuotes(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -212,33 +212,39 @@ class PersonalQuotes(commands.Cog):
         await self.clear_quotes(ctx)
 
     @commands.command(aliases=["server", "squote", "sq"])
+    @commands.guild_only()
     async def serverquote(self, ctx, alias: str):
         await self.send_quote(ctx, alias, True)
 
     @commands.command(aliases=["slist"])
+    @commands.guild_only()
     async def serverlist(self, ctx):
         await self.send_list(ctx, True)
 
     @commands.command(aliases=["sset"])
+    @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
     async def serverset(self, ctx, alias: str, *, query: str):
         await self.set_quote(ctx, alias, query, True)
 
     @commands.command(aliases=["scopy"])
+    @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
     async def servercopy(self, ctx, owner_id: int, alias: str):
         await self.copy_quote(ctx, owner_id, alias, True)
 
     @commands.command(aliases=["sremove", "sdelete", "sdel"])
+    @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
     async def serverremove(self, ctx, alias: str):
         await self.remove_quote(ctx, alias, True)
 
     @commands.command(aliases=["sclear"])
+    @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
     async def serverclear(self, ctx):
         await self.clear_quotes(ctx, True)
 
 
 def setup(bot):
-    bot.add_cog(PersonalQuotes(bot))
+    bot.add_cog(SavedQuotes(bot))

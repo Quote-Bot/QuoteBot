@@ -15,7 +15,7 @@ class OwnerOnly(commands.Cog):
             await guild.leave()
             await ctx.send(
                 (await self.bot.localize(ctx.guild, "OWNER_leave_left", "success")).format(
-                    guild.name.replace("`", "").replace("*", "")
+                    discord.utils.escape_markdown(guild.name)
                 )
             )
         else:
@@ -31,7 +31,7 @@ class OwnerOnly(commands.Cog):
             await guild.leave()
             await ctx.send(
                 (await self.bot.localize(ctx.guild, "OWNER_leave_left", "success")).format(
-                    guild.name.replace("`", "").replace("*", "")
+                    discord.utils.escape_markdown(guild.name)
                 )
             )
 
