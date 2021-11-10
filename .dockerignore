@@ -1,0 +1,10 @@
+.github/
+.gitignore
+.mypy-cache/
+.pre-commit-config.yaml
+.vscode/
+__pycache__/
+configs/credentials.json.example
+LICENSE
+pyproject.toml
+README.md

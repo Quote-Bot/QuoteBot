@@ -4,9 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"discord.py" = {editable = true, git = "https://github.com/Rapptz/discord.py.git"}
+"discord.py" = {git = "https://github.com/Rapptz/discord.py.git"}
 aiohttp = "*"
 aiosqlite = "*"
+uvloop = {version = "*", markers = "sys_platform == 'linux' or sys_platform == 'darwin'"}
 
 [dev-packages]
 black = "*"
@@ -17,7 +18,7 @@ pre-commit = "*"
 python_version = "3.9"
 
 [scripts]
-bot = "python quote.py"
+bot = "python bot.py"
 
 [pipenv]
 allow_prereleases = true

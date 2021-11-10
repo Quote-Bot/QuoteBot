@@ -1,4 +1,6 @@
+.mypy_cache/
 .vs/
 .vscode/
 __pycache__/
+configs/credentials.json
 configs/QuoteBot.db
