@@ -153,7 +153,7 @@ class MessageRetrievalContext(commands.Context):
         return MESSAGE_URL_RE.finditer(MARKDOWN.sub("?", self.message.content))
 
     async def get_channel_or_thread_message(self, msg_tuple: MessageTuple) -> discord.Message:
-        """Get message form channel or thread.
+        """Get message from channel or thread.
 
         Args:
             msg_tuple (MessageTuple): The message tuple.
