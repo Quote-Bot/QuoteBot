@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Optional
+from typing import Optional, Union
 
 import discord
 from discord.ext import commands
@@ -28,18 +28,6 @@ class Snipe(commands.Cog):
         self.bot = bot
         self.deletes = {}
         self.edits = {}
-
-    async def cog_check(self, ctx: commands.Context) -> bool:
-        if ctx.guild is None:
-            return True
-        author = ctx.author
-        if not isinstance(author, discord.Member) and (author := ctx.guild.get_member(author)) is None:
-            raise commands.MemberNotFound(ctx.author)
-        async with self.bot.db_connect() as con:
-            requires_manage_messages = await con.fetch_snipe_requires_manage_messages(ctx.guild.id)
-        if not requires_manage_messages or ctx.channel.permissions_for(ctx.author).manage_messages:
-            return True
-        raise commands.MissingPermissions(["manage_messages"])
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild) -> None:
@@ -90,24 +78,24 @@ class Snipe(commands.Cog):
         await ctx.trigger_typing()
         if channel_or_thread is None:
             channel_or_thread = ctx.channel
-        author = ctx.author
-        if not isinstance(author, discord.Member) and (author := channel_or_thread.guild.get_member(author.id)) is None:
+        author = channel_or_thread.guild.get_member(ctx.author.id)
+        if not isinstance(author, discord.Member):
             raise commands.MemberNotFound(author)
         if (
-            not channel_or_thread.permissions_for(ctx.author).read_messages
-            or not channel_or_thread.permissions_for(ctx.author).read_message_history
+            not channel_or_thread.permissions_for(author).read_messages
+            or not channel_or_thread.permissions_for(author).read_message_history
         ):
-            return
+            await ctx.send(await self.bot.localize("META_command_noperms", getattr(ctx.guild, "id", None), "error"))
+        else:
+            if guild := ctx.guild:
+                perms = ctx.channel.permissions_for(ctx.me)
+                if not perms.send_messages:
+                    return
+                if not perms.embed_links:
+                    await ctx.send(await self.bot.localize("META_perms_noembed", guild.id, "error"))
+                    return
 
-        if guild := ctx.guild:
-            perms = ctx.channel.permissions_for(ctx.me)
-            if not perms.send_messages:
-                return
-            if not perms.embed_links:
-                await ctx.send(await self.bot.localize("META_perms_noembed", guild.id, "error"))
-                return
-
-        await self._send_snipe(ctx, channel_or_thread, edit)
+            await self._send_snipe(ctx, channel_or_thread, edit)
 
     async def _send_snipe(self, ctx: commands.Context, channel_or_thread: TextChannelOrThread, edit: bool = False) -> None:
         try:
@@ -117,19 +105,38 @@ class Snipe(commands.Cog):
         else:
             await self.bot.quote_message(msg, ctx.channel, str(ctx.author), "snipe")
 
+    async def _snipe_if_permitted(
+        self, ctx: commands.Context, channel_or_thread: TextChannelOrThread, edit: bool = False
+    ) -> None:
+        if channel_or_thread is None:
+            if not isinstance(ctx.channel, (discord.TextChannel, discord.Thread)):
+                raise commands.NoPrivateMessage("Sniping DMs is not supported.")
+            channel_or_thread = ctx.channel
+        if await self._has_snipe_permission(ctx.author, channel_or_thread):
+            await self.snipe_msg(ctx, channel_or_thread, edit)
+        else:
+            await ctx.send(await self.bot.localize("META_command_noperms", getattr(ctx.guild, "id", None), "error"))
+
+    async def _has_snipe_permission(
+        self, user: Union[discord.User, discord.Member], channel_or_thread: TextChannelOrThread
+    ) -> bool:
+        member = channel_or_thread.guild.get_member(user.id)
+        if not isinstance(member, discord.Member):
+            return False
+        if channel_or_thread.permissions_for(member).manage_messages:
+            return True
+        async with self.bot.db_connect() as con:
+            return not await con.fetch_snipe_requires_manage_messages(channel_or_thread.guild.id)
+
     @commands.command()
     @delete_message_if_needed
     async def snipe(self, ctx: commands.Context, channel_or_thread: GlobalTextChannelOrThreadConverter = None) -> None:
-        if channel_or_thread is None and ctx.guild is None:
-            raise commands.NoPrivateMessage("Sniping DMs is not supported.")
-        await self.snipe_msg(ctx, channel_or_thread)  # type: ignore
+        await self._snipe_if_permitted(ctx, channel_or_thread)  # type: ignore
 
     @commands.command()
     @delete_message_if_needed
     async def snipeedit(self, ctx: commands.Context, channel_or_thread: GlobalTextChannelOrThreadConverter = None) -> None:
-        if channel_or_thread is None and ctx.guild is None:
-            raise commands.NoPrivateMessage("Sniping DMs is not supported.")
-        await self.snipe_msg(ctx, channel_or_thread, True)  # type: ignore
+        await self._snipe_if_permitted(ctx, channel_or_thread, True)  # type: ignore
 
 
 def setup(bot: "QuoteBot") -> None:
