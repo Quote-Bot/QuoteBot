@@ -75,7 +75,7 @@ class SavedQuotes(commands.Cog):
             if isinstance(error, commands.MessageNotFound):
                 await con.delete_message(msg_tuple.msg_id)
             elif isinstance(error, commands.ChannelNotFound):
-                await con.delete_channel(msg_tuple.channel_or_thread_id)
+                await con.delete_channel_or_thread(msg_tuple.channel_or_thread_id)
             elif isinstance(error, commands.GuildNotFound):
                 await con.delete_guild(msg_tuple.guild_id)
             await con.commit()
@@ -199,7 +199,7 @@ class SavedQuotes(commands.Cog):
     async def on_guild_channel_delete(self, channel) -> None:
         async with self.bot.db_connect() as con:
             await con.enable_foreign_keys()
-            await con.delete_channel(channel.id)
+            await con.delete_channel_or_thread(channel.id)
             await con.commit()
 
     @commands.Cog.listener()
