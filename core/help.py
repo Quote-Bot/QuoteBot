@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import Mapping, Optional
+
 import discord
 from discord.ext import commands
 
@@ -25,7 +27,7 @@ class QuoteBotHelpCommand(commands.HelpCommand):
     def subcommand_not_found(self, command: commands.Command, string: str) -> str:
         return string
 
-    async def send_bot_help(self, mapping: dict) -> None:
+    async def send_bot_help(self, mapping: Mapping[Optional[commands.Cog], list[commands.Command]]) -> None:
         ctx = self.context
         bot = ctx.bot
         prefix = (await bot.get_prefix(ctx.message))[-1]

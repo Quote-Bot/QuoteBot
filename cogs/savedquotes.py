@@ -17,8 +17,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import discord
 from discord.ext import commands
 
+from bot import QuoteBot
 from core.decorators import delete_message_if_needed
-from core.message_retrieval import MessageRetrievalContext, MessageTuple, lazy_load_message
+from core.message_retrieval import DEFAULT_AVATAR_URL, MessageRetrievalContext, MessageTuple, lazy_load_message
 from core.persistence import QuoteBotDatabaseConnection
 
 _MAX_ALIAS_LENGTH = 50
@@ -30,7 +31,7 @@ async def _has_reached_saved_quote_limit(con: QuoteBotDatabaseConnection, owner_
 
 
 class SavedQuotes(commands.Cog):
-    def __init__(self, bot: "QuoteBot") -> None:
+    def __init__(self, bot: QuoteBot) -> None:
         self.bot = bot
 
     async def send_saved_quote(self, ctx: MessageRetrievalContext, alias: str, server: bool = False) -> None:
@@ -96,7 +97,7 @@ class SavedQuotes(commands.Cog):
                 )
                 embed.set_author(
                     name=await self.bot.localize(f"SAVED_{'server' if server else 'personal'}list_embedauthor", guild_id),
-                    icon_url=ctx.author.avatar.url,
+                    icon_url=getattr(ctx.author.avatar, "url", DEFAULT_AVATAR_URL),
                 )
                 await ctx.send(embed=embed)
             else:
@@ -223,7 +224,7 @@ class SavedQuotes(commands.Cog):
         await self.set_saved_quote(ctx, alias, query)
 
     @commands.command(aliases=["pcopy"])
-    async def personalcopy(self, ctx, owner_id: int, alias: str) -> None:
+    async def personalcopy(self, ctx: commands.Context, owner_id: int, alias: str) -> None:
         await self.copy_quote(ctx, owner_id, alias)
 
     @commands.command(aliases=["premove", "pdelete", "pdel"])
@@ -270,5 +271,5 @@ class SavedQuotes(commands.Cog):
         await self.clear_quotes(ctx, True)
 
 
-def setup(bot: "QuoteBot") -> None:
+def setup(bot: QuoteBot) -> None:
     bot.add_cog(SavedQuotes(bot))

@@ -1,6 +1,6 @@
 {
-    "BOTLOG_guild_join": "**Gildia dodana** `{0}` (`{1}`)\n  Wszystkich członków gildii: {2}\n  Wszystkich gildii: {3}",
-    "BOTLOG_guild_remove": "**Gildia usunięta** `{0}` (`{1}`)\n  Wszystkich członków gildii: {2}\n  Wszystkich gildii: {3}",
+    "BOTLOG_guild_join": "**Gildia dodana: {0}** (ID: {1})\n  Wszystkich członków gildii: {2}\n  Wszystkich gildii: {3}",
+    "BOTLOG_guild_remove": "**Gildia usunięta: {0}** (ID: {1})\n  Wszystkich członków gildii: {2}\n  Wszystkich gildii: {3}",
     "HELPEMBED_links": "Odnośniki",
     "HELPEMBED_supportserver": "Wesprzyj Serwer",
     "HELPEMBED_addme": "Dodaj Mnie",

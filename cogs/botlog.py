@@ -19,9 +19,12 @@ import sys
 import discord
 from discord.ext import commands
 
+from bot import QuoteBot
+from core.message_retrieval import DEFAULT_AVATAR_URL
+
 
 class BotLog(commands.Cog):
-    def __init__(self, bot: "QuoteBot") -> None:
+    def __init__(self, bot: QuoteBot) -> None:
         self.bot = bot
         botlog_webhook_url = self.bot.config["botlog_webhook_url"]
         try:
@@ -42,7 +45,7 @@ class BotLog(commands.Cog):
         try:
             await self.webhook.send(
                 username=bot.user.name,
-                avatar_url=bot.user.avatar.url,
+                avatar_url=getattr(bot.user.avatar, "url", DEFAULT_AVATAR_URL),
                 content=(
                     await bot.localize(
                         f"BOTLOG_guild_{'join' if join else 'remove'}", None, f"guild_{'add' if join else 'remove'}"
@@ -62,5 +65,5 @@ class BotLog(commands.Cog):
         await self._send_guild_update(guild, join=False)
 
 
-def setup(bot: "QuoteBot") -> None:
+def setup(bot: QuoteBot) -> None:
     bot.add_cog(BotLog(bot))

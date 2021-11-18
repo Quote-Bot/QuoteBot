@@ -30,8 +30,6 @@ from core.help import QuoteBotHelpCommand
 from core.message_retrieval import MESSAGE_URL_RE, MessageRetrievalContext
 from core.persistence import QuoteBotDatabaseConnection, connect
 
-_DEFAULT_AVATAR_URL = "https://cdn.discordapp.com/embed/avatars/0.png"
-
 
 class QuoteBot(commands.AutoShardedBot):
     def __init__(self, config: dict) -> None:
@@ -181,7 +179,7 @@ class QuoteBot(commands.AutoShardedBot):
             timestamp=msg.created_at,
         )
         embed.set_author(
-            name=str(msg.author), url=msg.jump_url, icon_url=getattr(msg.author.avatar, "url", _DEFAULT_AVATAR_URL)
+            name=str(msg.author), url=msg.jump_url, icon_url=getattr(msg.author.avatar, "url", DEFAULT_AVATAR_URL)
         )
 
         # TODO: embed images from imgur, Gyazo, etc.

@@ -1,6 +1,6 @@
 {
-    "BOTLOG_guild_join": "**Servidor Adicionado** `{0}` (`{1}`)\n  Número total de membros no servidor: {2}\n  Número total de servidores: {3}",
-    "BOTLOG_guild_remove": "**Servidor Removido** `{0}` (`{1}`)\n  Número total de membros no servidor: {2}\n  Número total de servidores: {3}",
+    "BOTLOG_guild_join": "**Servidor Adicionado: {0}** (ID: {1})\n  Número total de membros no servidor: {2}\n  Número total de servidores: {3}",
+    "BOTLOG_guild_remove": "**Servidor Removido: {0}** (ID: {1})\n  Número total de membros no servidor: {2}\n  Número total de servidores: {3}",
     "QUOTE_quote_nomessage": "**Não foi possível encontrar a mensagem.**",
     "QUOTE_quote_attachments": "Anexo(s)",
     "QUOTE_quote_nonsfw": "**A mensagem citada vem de um canal NSFW.**",

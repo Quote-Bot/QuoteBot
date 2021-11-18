@@ -21,6 +21,9 @@ from typing import Iterable
 import discord
 from discord.ext import commands
 
+from bot import QuoteBot
+from core.message_retrieval import DEFAULT_AVATAR_URL
+
 
 def _should_send_highlight(msg: discord.Message, member: discord.Member, query: str) -> bool:
     return (
@@ -31,7 +34,7 @@ def _should_send_highlight(msg: discord.Message, member: discord.Member, query: 
 
 
 class Highlights(commands.Cog):
-    def __init__(self, bot: "QuoteBot") -> None:
+    def __init__(self, bot: QuoteBot) -> None:
         self.bot = bot
 
     @commands.Cog.listener()
@@ -61,7 +64,7 @@ class Highlights(commands.Cog):
                     continue
         await con.commit()
 
-    @commands.command(aliases=["hl"])
+    @commands.command(aliases=["hl", "hladd"])
     async def highlight(self, ctx: commands.Context, *, pattern: str) -> None:
         guild_id = getattr(ctx.guild, "id", None)
         if len(pattern) > 50:
@@ -86,9 +89,7 @@ class Highlights(commands.Cog):
             await con.insert_highlight(user_id, pattern)
             await con.commit()
         await ctx.send(
-            (await self.bot.localize("HIGHLIGHTS_highlight_added", guild_id, "success")).format(
-                pattern.replace("`", "").replace("*", "")
-            )
+            (await self.bot.localize("HIGHLIGHTS_highlight_added", guild_id, "success")).format(pattern.replace("`", ""))
         )
 
     @commands.command(aliases=["highlights", "hllist"])
@@ -103,7 +104,7 @@ class Highlights(commands.Cog):
             )
             embed.set_author(
                 name=await self.bot.localize("HIGHLIGHTS_highlightlist_embedauthor", guild_id),
-                icon_url=ctx.author.avatar.url,
+                icon_url=getattr(ctx.author.avatar, "url", DEFAULT_AVATAR_URL),
             )
             await ctx.send(embed=embed)
         else:
@@ -123,7 +124,7 @@ class Highlights(commands.Cog):
             await con.commit()
         await ctx.send(
             (await self.bot.localize("HIGHLIGHTS_highlightremove_removed", guild_id, "success")).format(
-                pattern.replace("`", "").replace("*", "")
+                pattern.replace("`", "")
             )
         )
 
@@ -137,5 +138,5 @@ class Highlights(commands.Cog):
         )
 
 
-def setup(bot: "QuoteBot") -> None:
+def setup(bot: QuoteBot) -> None:
     bot.add_cog(Highlights(bot))

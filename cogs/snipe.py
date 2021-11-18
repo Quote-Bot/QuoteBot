@@ -19,12 +19,13 @@ from typing import Optional, Union
 import discord
 from discord.ext import commands
 
+from bot import QuoteBot
 from core.converters import GlobalTextChannelOrThreadConverter, TextChannelOrThread
 from core.decorators import delete_message_if_needed
 
 
 class Snipe(commands.Cog):
-    def __init__(self, bot: "QuoteBot") -> None:
+    def __init__(self, bot: QuoteBot) -> None:
         self.bot = bot
         self.deletes = {}
         self.edits = {}
@@ -139,5 +140,5 @@ class Snipe(commands.Cog):
         await self._snipe_if_permitted(ctx, channel_or_thread, True)  # type: ignore
 
 
-def setup(bot: "QuoteBot") -> None:
+def setup(bot: QuoteBot) -> None:
     bot.add_cog(Snipe(bot))

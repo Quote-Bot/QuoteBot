@@ -1,6 +1,6 @@
 {
-    "BOTLOG_guild_join": "**Servidor Añadido** `{0}` (`{1}`)\n  Total de miembros: {2}\n  Total de servidores: {3}",
-    "BOTLOG_guild_remove": "**Servidor Removido** `{0}` (`{1}`)\n  Total de miembros: {2}\n  Total de servidores: {3}",
+    "BOTLOG_guild_join": "**Servidor Añadido: {0}** (ID: {1})\n  Total de miembros: {2}\n  Total de servidores: {3}",
+    "BOTLOG_guild_remove": "**Servidor Removido: {0}** (ID: {1})\n  Total de miembros: {2}\n  Total de servidores: {3}",
     "HELPEMBED_links": "Enlaces",
     "HELPEMBED_supportserver": "Servidor de Ayuda",
     "HELPEMBED_addme": "Añádeme",

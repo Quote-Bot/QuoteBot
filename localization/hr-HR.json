@@ -1,6 +1,6 @@
 {
-    "BOTLOG_guild_join": "**Server Dodan** `{0}` (`{1}`)\n  Broj članova servera: {2}\n  Svi serveri: {3}",
-    "BOTLOG_guild_remove": "**Server Uklonjen** `{0}` (`{1}`)\n  Broj članova servera: {2}\n  Svi serveri: {3}",
+    "BOTLOG_guild_join": "**Server Dodan: {0}** (ID: {1})\n  Broj članova servera: {2}\n  Svi serveri: {3}",
+    "BOTLOG_guild_remove": "**Server Uklonjen: {0}** (ID: {1})\n  Broj članova servera: {2}\n  Svi serveri: {3}",
     "HELPEMBED_links": "Linkovi",
     "HELPEMBED_supportserver": "Pomoćni Server",
     "HELPEMBED_addme": "Dodaj Me",

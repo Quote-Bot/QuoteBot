@@ -17,9 +17,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import discord
 from discord.ext import commands
 
+from bot import QuoteBot
+
 
 class OwnerOnly(commands.Cog):
-    def __init__(self, bot: "QuoteBot") -> None:
+    def __init__(self, bot: QuoteBot) -> None:
         self.bot = bot
 
     async def cog_check(self, ctx: commands.Context) -> bool:
@@ -86,5 +88,5 @@ class OwnerOnly(commands.Cog):
         await self.bot.close()
 
 
-def setup(bot: "QuoteBot") -> None:
+def setup(bot: QuoteBot) -> None:
     bot.add_cog(OwnerOnly(bot))

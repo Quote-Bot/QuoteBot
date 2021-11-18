@@ -17,9 +17,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import discord
 from discord.ext import commands
 
+from bot import QuoteBot
+
 
 class Settings(commands.Cog):
-    def __init__(self, bot: "QuoteBot") -> None:
+    def __init__(self, bot: QuoteBot) -> None:
         self.bot = bot
 
     @commands.command(aliases=["langs", "localizations"])
@@ -121,5 +123,5 @@ class Settings(commands.Cog):
             await ctx.send((await self.bot.localize("SETTINGS_setlanguage_set", ctx.guild.id, "success")).format(language))
 
 
-def setup(bot: "QuoteBot") -> None:
+def setup(bot: QuoteBot) -> None:
     bot.add_cog(Settings(bot))

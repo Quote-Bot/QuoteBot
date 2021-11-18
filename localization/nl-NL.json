@@ -1,6 +1,6 @@
 {
-    "BOTLOG_guild_join": ":inbox_tray: **Server Toegevoegd** `{0}` (`{1}`)\n  Aantal server leden: {2}\n  Aantal servers: {3}",
-    "BOTLOG_guild_remove": ":outbox_tray: **Server Verwijderd** `{0}` (`{1}`)\n  Aantal server leden: {2}\n  Aantal servers: {3}",
+    "BOTLOG_guild_join": ":inbox_tray: **Server Toegevoegd: {0}** (ID: {1})\n  Aantal server leden: {2}\n  Aantal servers: {3}",
+    "BOTLOG_guild_remove": ":outbox_tray: **Server Verwijderd: {0}** (ID: {1})\n  Aantal server leden: {2}\n  Aantal servers: {3}",
     "HELPEMBED_links": "Links",
     "HELPEMBED_supportserver": "Support Server",
     "HELPEMBED_addme": "Voeg me toe",

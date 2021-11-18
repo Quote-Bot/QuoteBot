@@ -20,8 +20,9 @@ from typing import Optional
 import discord
 from discord.ext import commands
 
+from bot import QuoteBot
 from core.decorators import delete_message_if_needed
-from core.message_retrieval import MessageRetrievalContext
+from core.message_retrieval import DEFAULT_AVATAR_URL, MessageRetrievalContext
 
 _MAX_CLONE_MESSAGES = 50
 _QUOTE_EMOJI = "💬"
@@ -31,7 +32,7 @@ _QUOTE_EXCEPTIONS = (discord.NotFound, discord.Forbidden, discord.HTTPException,
 async def webhook_copy(webhook, msg: discord.Message, clean_content: bool = False):
     await webhook.send(
         username=getattr(msg.author, "nick", False) or msg.author.name,
-        avatar_url=msg.author.avatar.url,
+        avatar_url=getattr(msg.author.avatar, "url", DEFAULT_AVATAR_URL),
         content=msg.clean_content if clean_content else msg.content,
         files=[await attachment.to_file() for attachment in msg.attachments],
         embed=(msg.embeds[0] if msg.embeds and msg.embeds[0].type == "rich" else None),
@@ -40,7 +41,7 @@ async def webhook_copy(webhook, msg: discord.Message, clean_content: bool = Fals
 
 
 class Main(commands.Cog):
-    def __init__(self, bot: "QuoteBot") -> None:
+    def __init__(self, bot: QuoteBot) -> None:
         self.bot = bot
 
     @commands.Cog.listener()
@@ -60,7 +61,7 @@ class Main(commands.Cog):
                 pass
 
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload) -> None:
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         if payload.emoji.name != _QUOTE_EMOJI:
             return
         async with self.bot.db_connect() as con:
@@ -151,5 +152,5 @@ class Main(commands.Cog):
             await self._send_cloned_messages(ctx, msg_limit, channel)
 
 
-def setup(bot: "QuoteBot") -> None:
+def setup(bot: QuoteBot) -> None:
     bot.add_cog(Main(bot))

@@ -20,6 +20,7 @@ from typing import Iterator, NamedTuple, Optional
 import discord
 from discord.ext import commands
 
+DEFAULT_AVATAR_URL = "https://cdn.discordapp.com/embed/avatars/0.png"
 MARKDOWN = re.compile(
     (
         r"```.*?```"  # ```multiline code```
