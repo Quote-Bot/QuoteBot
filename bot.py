@@ -27,7 +27,7 @@ from aiosqlite import connect
 from discord.ext import commands
 
 from core.help import QuoteBotHelpCommand
-from core.message_retrieval import MESSAGE_URL_RE, MessageRetrievalContext
+from core.message_retrieval import DEFAULT_AVATAR_URL, MESSAGE_URL_RE, MessageRetrievalContext
 from core.persistence import QuoteBotDatabaseConnection, connect
 
 
