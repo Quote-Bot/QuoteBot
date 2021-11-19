@@ -94,7 +94,12 @@ class QuoteBot(commands.AutoShardedBot):
         await self._update_guilds()
 
         for guild in self.guilds:
-            for thread in await guild.active_threads():
+            try:
+                active_threads = await guild.active_threads()
+            except TypeError:
+                # Due to a bug in discord.py 2.0.0a, `guild.active_threads()` sometimes raises a TypeError.
+                continue
+            for thread in active_threads:
                 await self.on_thread_join(thread)
 
         print("QuoteBot is ready.")
