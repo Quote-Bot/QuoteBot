@@ -1,0 +1,24 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+"discord.py" = {git = "https://github.com/Rapptz/discord.py.git"}
+aiohttp = ">=3.7.4"
+aiosqlite = "*"
+uvloop = {version = "*", markers = "sys_platform == 'linux' or sys_platform == 'darwin'"}
+
+[dev-packages]
+black = "*"
+isort = "*"
+pre-commit = "*"
+
+[requires]
+python_version = "3.9"
+
+[scripts]
+bot = "python bot.py"
+
+[pipenv]
+allow_prereleases = true
