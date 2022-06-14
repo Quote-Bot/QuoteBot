@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import Literal, Optional
 import discord
 from discord.ext import commands
 
@@ -29,64 +30,55 @@ class OwnerOnly(commands.Cog):
 
     @commands.command(aliases=["kick"])
     async def leave(self, ctx: commands.Context, guild_id: int) -> None:
-        ctx_guild_id = getattr(ctx.guild, "id", None)
+        """Make bot leave the server with the specified ID (owner only)."""
         if guild := self.bot.get_guild(guild_id):
             await guild.leave()
             await ctx.send(
-                (await self.bot.localize("OWNER_leave_left", ctx_guild_id, "success")).format(
-                    discord.utils.escape_markdown(guild.name)
-                )
+                f":white_check_mark: **Left server `{discord.utils.escape_markdown(guild.name)}`.**", ephemeral=True
             )
         else:
-            await ctx.send(await self.bot.localize("OWNER_leave_notfound", ctx_guild_id, "error"))
+            await ctx.send(":x: **Server not found.**", ephemeral=True)
 
     @commands.command(aliases=["reloadextension"])
-    async def reload(self, ctx: commands.Context, *, extension: str) -> None:
+    async def reload(self, ctx: commands.Context, extension: str) -> None:
+        """Reload an extension (owner only)."""
         try:
-            self.bot.reload_extension(f"cogs.{extension}")
+            await self.bot.reload_extension(f"cogs.{extension}")
         except commands.ExtensionError as error:
             await ctx.send(f":x: {error.__class__.__name__}: {error}`")
         else:
-            await ctx.send(
-                (await self.bot.localize("OWNER_reload_success", getattr(ctx.guild, "id", None), "success")).format(
-                    extension
-                )
-            )
+            await ctx.send(f":white_check_mark: **Reloaded extension `{extension}`.**", ephemeral=True)
 
     @commands.command()
     async def block(self, ctx: commands.Context, guild_id: int) -> None:
-        ctx_guild_id = getattr(ctx.guild, "id", None)
+        """Block the server with the specified ID (owner only)."""
         async with self.bot.db_connect() as con:
             await con.insert_blocked_id(guild_id)
             await con.commit()
-        await ctx.send(await self.bot.localize("OWNER_block_blocked", ctx_guild_id, "success"))
+        await ctx.send(":white_check_mark: **Server blocked.**", ephemeral=True)
         if guild := self.bot.get_guild(guild_id):
             await guild.leave()
-            await ctx.send(
-                (await self.bot.localize("OWNER_leave_left", ctx_guild_id, "success")).format(
-                    discord.utils.escape_markdown(guild.name)
-                )
-            )
 
     @commands.command()
     async def unblock(self, ctx: commands.Context, guild_id: int) -> None:
-        ctx_guild_id = getattr(ctx.guild, "id", None)
+        """Unblock the server with the specified ID (owner only)."""
         async with self.bot.db_connect() as con:
             if not await con.is_blocked(guild_id):
-                await ctx.send(await self.bot.localize("OWNER_unblock_notfound", ctx_guild_id, "error"))
+                await ctx.send(":x: **Server was not blocked.**", ephemeral=True)
             else:
                 await con.delete_blocked_id(guild_id)
                 await con.commit()
-                await ctx.send(await self.bot.localize("OWNER_unblock_unblocked", ctx_guild_id, "success"))
+                await ctx.send(":white_check_mark: **Server unblocked.**", ephemeral=True)
 
     @commands.command(aliases=["logout", "close"])
     async def shutdown(self, ctx: commands.Context) -> None:
+        """Shutdown the bot (owner only)."""
         try:
-            await ctx.send(content=await self.bot.localize("OWNER_shutdown", getattr(ctx.guild, "id", None), "success"))
+            await ctx.send(":white_check_mark: **Shutting down.**", ephemeral=True)
         except discord.Forbidden:
             pass
         await self.bot.close()
 
 
-def setup(bot: QuoteBot) -> None:
-    bot.add_cog(OwnerOnly(bot))
+async def setup(bot: QuoteBot) -> None:
+    await bot.add_cog(OwnerOnly(bot))

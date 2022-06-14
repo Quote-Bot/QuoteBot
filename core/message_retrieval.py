@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -36,7 +36,7 @@ MARKDOWN = re.compile(
     ),
     re.DOTALL | re.MULTILINE,
 )
-MESSAGE_ID_RE = re.compile(r"(?:(?P<channel_or_thread_id>[0-9]{15,20})(?:-|/|\s))?(?P<message_id>[0-9]{15,20})$")
+MESSAGE_ID_RE = re.compile(r"(?:(?P<channel_or_thread_id>[0-9]{15,20})[-/\s])?(?P<message_id>[0-9]{15,20})$")
 MESSAGE_URL_RE = re.compile(
     r"https?://(?:(canary|ptb|www)\.)?discord(?:app)?\.com/channels/"
     r"(?:(?P<guild_id>[0-9]{15,20})|(?P<dm>@me))/(?P<channel_or_thread_id>[0-9]{15,20})/"

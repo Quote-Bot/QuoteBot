@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -76,7 +76,7 @@ class Snipe(commands.Cog):
         channel_or_thread: Optional[TextChannelOrThread],
         edit: bool = False,
     ) -> None:
-        await ctx.trigger_typing()
+        await ctx.typing()
         if channel_or_thread is None:
             channel_or_thread = ctx.channel
         author = channel_or_thread.guild.get_member(ctx.author.id)
@@ -86,23 +86,19 @@ class Snipe(commands.Cog):
             not channel_or_thread.permissions_for(author).read_messages
             or not channel_or_thread.permissions_for(author).read_message_history
         ):
-            await ctx.send(await self.bot.localize("META_command_noperms", getattr(ctx.guild, "id", None), "error"))
+            await ctx.send(":x: **You don't have permission to use this command.**")
         else:
-            if guild := ctx.guild:
+            if ctx.guild is not None:
                 perms = ctx.channel.permissions_for(ctx.me)
                 if not perms.send_messages:
                     return
-                if not perms.embed_links:
-                    await ctx.send(await self.bot.localize("META_perms_noembed", guild.id, "error"))
-                    return
-
             await self._send_snipe(ctx, channel_or_thread, edit)
 
     async def _send_snipe(self, ctx: commands.Context, channel_or_thread: TextChannelOrThread, edit: bool = False) -> None:
         try:
             msg = (self.edits if edit else self.deletes)[channel_or_thread.guild.id][channel_or_thread.id]
         except KeyError:
-            await ctx.send(await self.bot.localize("QUOTE_quote_nomessage", ctx.guild.id, "error"))
+            await ctx.send(":x: **Couldn't find the message.**")
         else:
             await self.bot.quote_message(msg, ctx.channel, str(ctx.author), "snipe")
 
@@ -116,7 +112,7 @@ class Snipe(commands.Cog):
         if await self._has_snipe_permission(ctx.author, channel_or_thread):
             await self.snipe_msg(ctx, channel_or_thread, edit)
         else:
-            await ctx.send(await self.bot.localize("META_command_noperms", getattr(ctx.guild, "id", None), "error"))
+            await ctx.send(":x: **You don't have permission to snipe messages.**")
 
     async def _has_snipe_permission(
         self, user: Union[discord.User, discord.Member], channel_or_thread: TextChannelOrThread
@@ -131,14 +127,20 @@ class Snipe(commands.Cog):
 
     @commands.command()
     @delete_message_if_needed
-    async def snipe(self, ctx: commands.Context, channel_or_thread: GlobalTextChannelOrThreadConverter = None) -> None:
+    async def snipe(
+        self, ctx: commands.Context, channel_or_thread: Optional[GlobalTextChannelOrThreadConverter] = None
+    ) -> None:
+        """Snipe the last cached deleted message from a specified channel or the current channel."""
         await self._snipe_if_permitted(ctx, channel_or_thread)  # type: ignore
 
     @commands.command()
     @delete_message_if_needed
-    async def snipeedit(self, ctx: commands.Context, channel_or_thread: GlobalTextChannelOrThreadConverter = None) -> None:
+    async def snipeedit(
+        self, ctx: commands.Context, channel_or_thread: Optional[GlobalTextChannelOrThreadConverter] = None
+    ) -> None:
+        """Snipe the last cached edited message from a specified channel or the current channel."""
         await self._snipe_if_permitted(ctx, channel_or_thread, True)  # type: ignore
 
 
-def setup(bot: QuoteBot) -> None:
-    bot.add_cog(Snipe(bot))
+async def setup(bot: QuoteBot) -> None:
+    await bot.add_cog(Snipe(bot))
