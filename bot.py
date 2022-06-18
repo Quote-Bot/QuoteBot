@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -14,12 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import asyncio
 import importlib
 import json
 import os
 from sys import stderr
 from traceback import print_tb
-from typing import Iterable, Optional
+from typing import Iterable, NamedTuple, Optional
 
 import discord
 from aiohttp import ClientSession
@@ -31,7 +32,20 @@ from core.message_retrieval import DEFAULT_AVATAR_URL, MESSAGE_URL_RE, MessageRe
 from core.persistence import QuoteBotDatabaseConnection, connect
 
 
+class QuoteText(NamedTuple):
+    footer: str
+    raw_embed: str
+
+
 class QuoteBot(commands.AutoShardedBot):
+    _QUOTE_TYPE_TEXT = {
+        "quote": QuoteText("Quoted", "quoted"),
+        "link": QuoteText("Linked", "linked"),
+        "personal_quote": QuoteText("Personal Quote", "(Personal Quote)"),
+        "server_quote": QuoteText("Server Quote", "(Server Quote)"),
+        "snipe": QuoteText("Sniped", "sniped"),
+    }
+
     def __init__(self, config: dict) -> None:
         super().__init__(
             help_command=QuoteBotHelpCommand(),
@@ -47,18 +61,40 @@ class QuoteBot(commands.AutoShardedBot):
                 guilds=True,
                 dm_messages=config["intents"]["dm_messages"],
                 members=config["intents"]["members"],
+                message_content=True,
             ),
         )
 
         self.config = config
+        print("Bot configured.")
 
-        self.responses = {}
-
-        for filename in os.listdir(path="localization"):
-            with open(os.path.join("localization", filename), encoding="utf-8") as json_data:
-                self.responses[filename[:-5]] = json.load(json_data)
-
+    async def setup_hook(self):
         self.loop.create_task(self.startup())
+
+    async def startup(self) -> None:
+        self.session = ClientSession(loop=self.loop)
+        await self._load_extensions()
+        print("Extensions loaded.")
+
+        async with self.db_connect() as con:
+            await con.prepare_db(self.config["default_prefix"])
+        print("Database prepared.")
+
+        await self.wait_until_ready()
+        self.owner_ids.add((await self.application_info()).owner.id)
+        await self._update_guilds()
+        print("Servers updated.")
+
+        for guild in self.guilds:
+            try:
+                active_threads = await guild.active_threads()
+            except TypeError:
+                # Due to a bug in discord.py 2.0.0a, `guild.active_threads()` sometimes raises a TypeError.
+                continue
+            for thread in active_threads:
+                await self.on_thread_create(thread)
+
+        print("QuoteBot is ready.")
 
     def db_connect(self) -> QuoteBotDatabaseConnection:
         return connect(os.path.join("configs", "QuoteBot.db"))  # type: ignore
@@ -82,34 +118,12 @@ class QuoteBot(commands.AutoShardedBot):
             )
         )
 
-    async def startup(self) -> None:
-        self.session = ClientSession(loop=self.loop)
-        self._load_extensions()
-
-        async with self.db_connect() as con:
-            await con.prepare_db(self.config["default_prefix"], self.config["default_lang"])
-
-        await self.wait_until_ready()
-        self.owner_ids.add((await self.application_info()).owner.id)
-        await self._update_guilds()
-
-        for guild in self.guilds:
-            try:
-                active_threads = await guild.active_threads()
-            except TypeError:
-                # Due to a bug in discord.py 2.0.0a, `guild.active_threads()` sometimes raises a TypeError.
-                continue
-            for thread in active_threads:
-                await self.on_thread_join(thread)
-
-        print("QuoteBot is ready.")
-
-    def _load_extensions(self) -> None:
+    async def _load_extensions(self) -> None:
         for extension in ("highlights", "owneronly", "quote", "savedquotes", "settings", "snipe"):
-            self.load_extension(f"cogs.{extension}")
+            await self.load_extension(f"cogs.{extension}")
 
         if self.config["botlog_webhook_url"]:
-            self.load_extension("cogs.botlog")
+            await self.load_extension("cogs.botlog")
 
     async def _update_guilds(self) -> None:
         async with self.db_connect() as con:
@@ -135,37 +149,24 @@ class QuoteBot(commands.AutoShardedBot):
             elif guild.id not in old_guild_ids:
                 await self.insert_new_guild(con, guild.id)
 
-    async def localize(self, query: str, guild_id: Optional[int] = None, response_type: Optional[str] = None) -> str:
-        default_lang = self.config["default_lang"]
-        if guild_id is None:
-            language = default_lang
-        else:
-            async with self.db_connect() as con:
-                language = await con.fetch_language(guild_id) or default_lang
-
-        response = self.responses[language].get(query, self.responses[default_lang][query])
-        if response_type is None:
-            return response
-        return f"{self.config['response_strings'][response_type]} {response}"
-
     async def insert_new_guild(self, con, guild_id: int) -> None:
-        await con.insert_guild(guild_id, self.config["default_prefix"], self.config["default_lang"])
+        await con.insert_guild(guild_id, self.config["default_prefix"])
 
     async def quote_message(
         self, msg: discord.Message, destination: discord.abc.Messageable, quoted_by: str, quote_type: str = "quote"
     ) -> discord.Message:
-        destination_guild_id = getattr(getattr(destination, "guild", None), "id", None)
+        destination_guild = getattr(destination, "guild", None)
         if self._is_quote(msg):
             return await self._requote_message(msg, destination, quoted_by, quote_type)
 
         if not msg.content and msg.embeds:
             return await destination.send(
-                await self._get_raw_embed_quote_content(msg, quoted_by, quote_type, destination_guild_id),
+                self._get_raw_embed_quote_content(msg, quoted_by, quote_type, destination_guild),
                 embed=msg.embeds[0],
             )
 
         embed = await self._create_quote_embed(msg, destination)
-        await self._format_quote_embed_footer(msg, quoted_by, quote_type, destination_guild_id, embed)
+        self._format_quote_embed_footer(msg, quoted_by, quote_type, destination_guild, embed)
         return await destination.send(embed=embed)
 
     def _is_quote(self, msg: discord.Message) -> bool:
@@ -173,14 +174,13 @@ class QuoteBot(commands.AutoShardedBot):
             if msg.content:
                 return True
             embed = msg.embeds[0]
-            return embed.author.url is not discord.Embed.Empty and bool(MESSAGE_URL_RE.match(embed.author.url))
+            return embed.author.url is not None and bool(MESSAGE_URL_RE.match(embed.author.url))
         return False
 
     async def _create_quote_embed(self, msg: discord.Message, destination: discord.abc.Messageable) -> discord.Embed:
-        destination_guild_id = getattr(getattr(destination, "guild", None), "id", None)
         embed = discord.Embed(
-            description=msg.content if getattr(msg.guild, "id", None) == destination_guild_id else msg.clean_content,
-            color=msg.author.color.value or discord.Embed.Empty,
+            description=msg.content if msg.guild == getattr(destination, "guild", None) else msg.clean_content,
+            color=msg.author.color.value,
             timestamp=msg.created_at,
         )
         embed.set_author(
@@ -198,8 +198,8 @@ class QuoteBot(commands.AutoShardedBot):
                 )
             ):
                 embed.add_field(
-                    name=f"{await self.localize('QUOTE_quote_attachments', destination_guild_id)}",
-                    value=f":underage: {await self.localize('QUOTE_quote_nonsfw', destination_guild_id)}",
+                    name="Attachment(s)",
+                    value=f":underage: **Message quoted from an NSFW channel.**",
                 )
             elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(
                 (".jpg", ".jpeg", ".jfif", ".png", ".gif", ".gifv", ".webp", ".bmp", ".svg", ".tiff")
@@ -207,7 +207,7 @@ class QuoteBot(commands.AutoShardedBot):
                 embed.set_image(url=url)
             else:
                 embed.add_field(
-                    name=f"{await self.localize('QUOTE_quote_attachments', destination_guild_id)}",
+                    name="Attachment(s)",
                     value="\n".join(f"[{attachment.filename}]({attachment.url})" for attachment in msg.attachments),
                 )
 
@@ -217,36 +217,40 @@ class QuoteBot(commands.AutoShardedBot):
         self, msg: discord.Message, destination: discord.abc.Messageable, quoted_by: str, quote_type: str
     ) -> discord.Message:
         embed = msg.embeds[0]
-        destination_guild_id = getattr(getattr(destination, "guild", None), "id", None)
+        destination_guild = getattr(destination, "guild", None)
         if msg.content:
             # raw embed quote
-            msg.content = await self._get_raw_embed_quote_content(msg, quoted_by, quote_type, destination_guild_id)
+            msg.content = self._get_raw_embed_quote_content(msg, quoted_by, quote_type, destination_guild)
         else:
-            await self._format_quote_embed_footer(msg, quoted_by, quote_type, destination_guild_id, embed)
+            self._format_quote_embed_footer(msg, quoted_by, quote_type, destination_guild, embed)
         return await destination.send(content=msg.content, embed=embed)
 
-    async def _get_raw_embed_quote_content(
-        self, msg: discord.Message, quoted_by: str, quote_type: str, destination_guild_id: Optional[int]
+    def _get_raw_embed_quote_content(
+        self, msg: discord.Message, quoted_by: str, quote_type: str, destination_guild: Optional[discord.Guild]
     ) -> str:
-        return (await self.localize(f"QUOTE_{quote_type}_rawembed", destination_guild_id)).format(
-            quoted_by,
-            msg.author,
-            (self.user if isinstance(msg.channel, discord.abc.PrivateChannel) else msg.channel).mention,
-        )
+        if quote_type == "highlight":
+            return f"Raw embed highlighted from {msg.author.mention} in {msg.channel.mention} ({msg.guild.name})"
+        source = (self.user if isinstance(msg.channel, discord.abc.PrivateChannel) else msg.channel).mention
+        if destination_guild is not None and msg.guild != destination_guild:
+            source = f"{source} ({msg.guild.name})"
+        return f"Raw embed {self._QUOTE_TYPE_TEXT[quote_type].raw_embed} by @\u200b{quoted_by} from @\u200b{msg.author} in {source}"
 
-    # TODO: show server name in footer if quoted message is from another server
-    async def _format_quote_embed_footer(
+    def _format_quote_embed_footer(
         self,
         msg: discord.Message,
         quoted_by: str,
         quote_type: str,
-        destination_guild_id: Optional[int],
+        destination_guild: Optional[discord.Guild],
         embed: discord.Embed,
     ) -> None:
+        if quote_type == "highlight":
+            embed.set_footer(text=f"Highlighted from #{msg.channel} ({msg.guild.name})")
+            return
+        source = self.user if isinstance(msg.channel, discord.DMChannel) else f"#{msg.channel.name}"
+        if destination_guild is not None and msg.guild != destination_guild:
+            source = f"{source} ({msg.guild.name})"
         embed.set_footer(
-            text=(await self.localize(f"QUOTE_{quote_type}_embedfooter", destination_guild_id)).format(
-                quoted_by, self.user if isinstance(msg.channel, discord.DMChannel) else f"#{msg.channel.name}"
-            )
+            text=f"{self._QUOTE_TYPE_TEXT[quote_type].footer} by @\u200b{quoted_by} from @\u200b{msg.author} in {source}"
         )
 
     async def on_ready(self) -> None:
@@ -262,7 +266,7 @@ class QuoteBot(commands.AutoShardedBot):
                 await con.commit()
 
         for thread in await guild.active_threads():
-            await self.on_thread_join(thread)
+            await self.on_thread_create(thread)
 
     async def on_guild_remove(self, guild: discord.Guild) -> None:
         await self._update_presence()
@@ -271,44 +275,38 @@ class QuoteBot(commands.AutoShardedBot):
             await con.delete_guild(guild.id)
             await con.commit()
 
-    async def on_thread_join(self, thread: discord.Thread) -> None:
-        """Called when a thread is joined or created (API cannot differentiate between the two).
+    async def on_thread_create(self, thread: discord.Thread) -> None:
+        """Called when a thread is created.
 
-        Bot will join the thread if it has not done so already, so it can respond to commands and reactions.
+        Bot will join the thread, so it can respond to commands and reactions.
 
         Args:
             thread (discord.Thread): The thread that was joined or created.
         """
-        if thread.me is None:
-            try:
-                await thread.join()
-            except (discord.Forbidden, discord.HTTPException):
-                pass
+        try:
+            await thread.join()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
 
     async def on_message(self, msg: discord.Message) -> None:
         if not msg.guild or msg.channel.permissions_for(msg.guild.me).send_messages:
             await self.process_commands(msg)
 
     async def on_command_error(self, ctx: commands.Context, error: Exception) -> None:
-        guild_id = getattr(ctx.guild, "id", None)
         if isinstance(error, commands.CommandNotFound) or hasattr(ctx.command, "on_error"):
             return
         if isinstance(error := getattr(error, "original", error), commands.NoPrivateMessage):
             try:
-                await ctx.author.send(await self.localize("META_command_noprivatemsg", guild_id, "error"))
+                await ctx.author.send(":x: **This command can only be used in servers.**")
             except discord.HTTPException:
                 pass
         elif isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(
-                (await self.localize("META_command_oncooldown", guild_id, "error")).format(round(error.retry_after, 1))
-            )
+            await ctx.send(f":x: **This command is on cooldown. Try again in {round(error.retry_after, 1)} seconds.**")
         elif isinstance(error, commands.CheckFailure):
-            await ctx.send(await self.localize("META_command_noperms", guild_id, "error"))
+            await ctx.send(":x: **You don't have permission to use this command.**")
         elif isinstance(error, commands.UserInputError):
             await ctx.send(
-                (await self.localize("META_command_inputerror", guild_id, "error")).format(
-                    f"{(await self.get_prefix(ctx.message))[-1]}help {ctx.command.qualified_name}"
-                )
+                f":x: **Invalid command input. See `{ctx.prefix}help {ctx.command.qualified_name}` for usage info.**"
             )
         else:
             if isinstance(error, discord.HTTPException):
@@ -330,20 +328,22 @@ def install_uvloop_if_found() -> None:
     try:
         uvloop = importlib.import_module("uvloop")
     except ModuleNotFoundError:
-        pass
+        print("uvloop not found, using default event loop.")
     else:
         uvloop.install()  # type: ignore
+        print("uvloop installed.")
 
 
-def main() -> None:
+async def main() -> None:
     print("Starting QuoteBot...")
     install_uvloop_if_found()
 
     with open(os.path.join("configs", "credentials.json")) as config_data:
-        quote_bot = QuoteBot(json.load(config_data))
+        bot = QuoteBot(json.load(config_data))
 
-    quote_bot.run(quote_bot.config["token"])
+    async with bot:
+        await bot.start(bot.config["token"])
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

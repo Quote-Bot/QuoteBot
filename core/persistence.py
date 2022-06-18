@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -30,7 +30,7 @@ class AsyncDatabaseConnection(Connection):
         await self.execute("PRAGMA foreign_keys = ON")
 
     @contextmanager
-    async def execute_fetchone(self, sql: str, parameters: Iterable[Any] = None) -> Optional[sqlite3.Row]:
+    async def execute_fetchone(self, sql: str, parameters: Optional[Iterable[Any]] = None) -> Optional[sqlite3.Row]:
         if parameters is None:
             parameters = []
         cursor = await self.execute(sql, parameters)
@@ -38,19 +38,14 @@ class AsyncDatabaseConnection(Connection):
 
 
 class GuildConnectionMixin(AsyncDatabaseConnection):
-    async def insert_guild(self, guild_id: int, prefix: str, language: str) -> None:
+    async def insert_guild(self, guild_id: int, prefix: str) -> None:
         await self.execute(
-            "INSERT OR IGNORE INTO guild (guild_id, prefix, language) VALUES (?, ?, ?)",
-            (guild_id, prefix, language),
+            "INSERT OR IGNORE INTO guild (guild_id, prefix) VALUES (?, ?)",
+            (guild_id, prefix),
         )
 
     async def fetch_prefix(self, guild_id: int) -> Optional[str]:
         if row := await self.execute_fetchone("SELECT prefix FROM guild WHERE guild_id = ?", (guild_id,)):
-            return row[0]
-        return None
-
-    async def fetch_language(self, guild_id: int) -> Optional[str]:
-        if row := await self.execute_fetchone("SELECT language FROM guild WHERE guild_id = ?", (guild_id,)):
             return row[0]
         return None
 
@@ -77,9 +72,6 @@ class GuildConnectionMixin(AsyncDatabaseConnection):
 
     async def set_prefix(self, guild_id: int, prefix: str) -> None:
         await self.execute("UPDATE guild SET prefix = ? WHERE guild_id = ?", (prefix, guild_id))
-
-    async def set_language(self, guild_id: int, language: str) -> None:
-        await self.execute("UPDATE guild SET language = ? WHERE guild_id = ?", (language, guild_id))
 
     async def set_quote_reactions(self, guild_id: int, quote_reactions: bool) -> None:
         await self.execute("UPDATE guild SET quote_reactions = ? WHERE guild_id = ?", (int(quote_reactions), guild_id))
@@ -163,7 +155,7 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
         return tuple(row[0] for row in rows)
 
     async def fetch_user_highlight_count(self, user_id: int) -> int:
-        return (await self.execute_fetchone("SELECT COUNT(query) FROM highlight WHERE user_id = ?", (user_id,)))[0]
+        return (await self.execute_fetchone("SELECT COUNT(query) FROM highlight WHERE user_id = ?", (user_id,)))[0]  # type: ignore
 
     async def fetch_user_highlights_starting_with(self, user_id: int, prefix: str) -> Iterable[sqlite3.Row]:
         return await self.execute_fetchall(
@@ -195,7 +187,7 @@ class SavedQuoteConnectionMixin(AsyncDatabaseConnection):
             return row[0]
 
     async def fetch_saved_quote_count(self, owner_id: int) -> int:
-        return (await self.execute_fetchone("SELECT COUNT(alias) FROM saved_quote WHERE owner_id = ?", (owner_id,)))[0]
+        return (await self.execute_fetchone("SELECT COUNT(alias) FROM saved_quote WHERE owner_id = ?", (owner_id,)))[0]  # type: ignore
 
     async def delete_saved_quote(self, owner_id: int, alias: str) -> None:
         await self.execute("DELETE FROM saved_quote WHERE owner_id = ? AND alias = ?", (owner_id, alias))
@@ -212,12 +204,12 @@ class QuoteBotDatabaseConnection(
     SavedQuoteConnectionMixin,
 ):
     async def __aenter__(self) -> "QuoteBotDatabaseConnection":
-        con = await self  # type: ignore
+        con = await self
         con.row_factory = sqlite3.Row
         await con.execute("PRAGMA journal_mode = WAL")
-        return con
+        return con  # type: ignore
 
-    async def prepare_db(self, default_prefix: str, default_lang: str) -> None:
+    async def prepare_db(self, default_prefix: str) -> None:
         await self.executescript(
             f"""
             PRAGMA auto_vacuum = 1;
@@ -227,12 +219,10 @@ class QuoteBotDatabaseConnection(
             IF NOT EXISTS guild (
                 guild_id INTEGER PRIMARY KEY,
                 prefix TEXT DEFAULT '{default_prefix}' NOT NULL,
-                language TEXT DEFAULT '{default_lang}' NOT NULL,
                 quote_reactions INTEGER DEFAULT 0 NOT NULL,
                 quote_links INTEGER DEFAULT 0 NOT NULL,
                 delete_commands INTEGER DEFAULT 0 NOT NULL,
-                snipe_requires_manage_messages INTEGER DEFAULT 0 NOT NULL,
-                pin_channel INTEGER
+                snipe_requires_manage_messages INTEGER DEFAULT 0 NOT NULL
             );
             CREATE TABLE
             IF NOT EXISTS channel (

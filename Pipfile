@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"discord.py" = {git = "https://github.com/Rapptz/discord.py.git"}
+"discord.py" = {ref = "903e2e64e9182b8d3330ef565af7bb46ff9f04da", git = "https://github.com/Rapptz/discord.py.git"}
 aiohttp = ">=3.7.4"
 aiosqlite = "*"
 uvloop = {version = "*", markers = "sys_platform == 'linux' or sys_platform == 'darwin'"}

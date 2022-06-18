@@ -13,12 +13,11 @@ An easy way to quote messages with cross-server support!
 ## Features
 
 - Message link & ID quoting
-- Deleted/Edited message sniping
+- Deleted/edited message sniping
 - Message cloning
-- Personal quoting
-- Server quoting
-- Server-based language responses
-- Custom server-based prefix
+- Saved personal/server quotes
+- Highlight messages containing specific words/patterns
+- Configurable settings for each server
 
 <br />
 

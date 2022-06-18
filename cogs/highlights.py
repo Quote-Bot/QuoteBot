@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,9 @@ from discord.ext import commands
 
 from bot import QuoteBot
 from core.message_retrieval import DEFAULT_AVATAR_URL
+from core.persistence import QuoteBotDatabaseConnection
+
+_MAX_PATTERN_LENGTH = 50
 
 
 def _should_send_highlight(msg: discord.Message, member: discord.Member, query: str) -> bool:
@@ -46,7 +49,7 @@ class Highlights(commands.Cog):
             await self._send_highlights(con, msg, highlights)
 
     async def _send_highlights(
-        self, con: "QuoteBotConnection", msg: discord.Message, highlights: Iterable[sqlite3.Row]
+        self, con: QuoteBotDatabaseConnection, msg: discord.Message, highlights: Iterable[sqlite3.Row]
     ) -> None:
         seen_user_ids = set()
         for user_id, query in highlights:
@@ -66,77 +69,76 @@ class Highlights(commands.Cog):
 
     @commands.command(aliases=["hl", "hladd"])
     async def highlight(self, ctx: commands.Context, *, pattern: str) -> None:
-        guild_id = getattr(ctx.guild, "id", None)
-        if len(pattern) > 50:
-            await ctx.send(await self.bot.localize("HIGHLIGHTS_highlight_toolong", guild_id, "error"))
+        """
+        Highlight a regular expression pattern of up to 50 characters so every message in a mutual server channel containing it will be quoted to you.
+
+        Requires allowing direct messages from server members in your 'Privacy & Safety' settings.
+        """
+        if len(pattern) > _MAX_PATTERN_LENGTH:
+            await ctx.send(f":x: **Highlight pattern cannot be longer than {_MAX_PATTERN_LENGTH} characters.**")
             return
         try:
             re.compile(pattern)
         except re.error:
-            await ctx.send(await self.bot.localize("HIGHLIGHTS_highlight_invalid", guild_id, "error"))
+            await ctx.send(":x: **Invalid regular expression. You can test your pattern at: https://pythex.org/.**")
             return
         try:
             await ctx.author.send()
         except discord.Forbidden:
-            await ctx.send(await self.bot.localize("HIGHLIGHTS_highlight_dmsdisabled", guild_id, "error"))
+            await ctx.send(
+                ":x: **Allow direct messages from server members in your 'Privacy & Safety' settings to make use of Highlights.**"
+            )
             return
         except discord.HTTPException:
             pass
         async with self.bot.db_connect() as con:
             if await con.fetch_user_highlight_count(user_id := ctx.author.id) >= 10:
-                await ctx.send(await self.bot.localize("HIGHLIGHTS_highlight_limitexceeded", guild_id, "error"))
+                await ctx.send(":x: **Highlight limit exceeded.**")
                 return
             await con.insert_highlight(user_id, pattern)
             await con.commit()
-        await ctx.send(
-            (await self.bot.localize("HIGHLIGHTS_highlight_added", guild_id, "success")).format(pattern.replace("`", ""))
-        )
+        await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` added.**")
 
     @commands.command(aliases=["highlights", "hllist"])
     async def highlightlist(self, ctx: commands.Context) -> None:
+        """List your Highlights."""
         async with self.bot.db_connect() as con:
             highlights = await con.fetch_user_highlights(ctx.author.id)
-        guild_id = getattr(ctx.guild, "id", None)
         if highlights:
             embed = discord.Embed(
                 description="\n".join(f"`{highlight.replace('`', '')}`" for highlight in highlights),
-                color=ctx.author.color.value or discord.Embed.Empty,
+                color=ctx.author.color.value,
             )
             embed.set_author(
-                name=await self.bot.localize("HIGHLIGHTS_highlightlist_embedauthor", guild_id),
+                name="My Highlights",
                 icon_url=getattr(ctx.author.avatar, "url", DEFAULT_AVATAR_URL),
             )
             await ctx.send(embed=embed)
         else:
-            await ctx.send(await self.bot.localize("HIGHLIGHTS_highlightlist_nohighlights", guild_id, "error"))
+            await ctx.send(":x: **You don't have any Highlights.**")
 
     @commands.command(aliases=["hlremove", "hldelete", "hldel"])
     async def highlightremove(self, ctx: commands.Context, *, pattern: str) -> None:
-        guild_id = getattr(ctx.guild, "id", None)
+        """Remove a Highlight."""
         async with self.bot.db_connect() as con:
             if await con.fetch_highlight(user_id := ctx.author.id, pattern):
                 await con.delete_highlight(user_id, pattern)
             elif len(matches := await con.fetch_user_highlights_starting_with(user_id, pattern)) == 1:
                 await con.delete_highlight(user_id, pattern := matches[0][0])
             else:
-                await ctx.send(await self.bot.localize("HIGHLIGHTS_highlightremove_notfound", guild_id, "error"))
+                await ctx.send(":x: **Highlight not found.**")
                 return
             await con.commit()
-        await ctx.send(
-            (await self.bot.localize("HIGHLIGHTS_highlightremove_removed", guild_id, "success")).format(
-                pattern.replace("`", "")
-            )
-        )
+        await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` removed.**")
 
     @commands.command(aliases=["hlclear"])
     async def highlightclear(self, ctx: commands.Context) -> None:
+        """Clear all your Highlights."""
         async with self.bot.db_connect() as con:
             await con.clear_user_highlights(ctx.author.id)
             await con.commit()
-        await ctx.send(
-            await self.bot.localize("HIGHLIGHTS_highlightclear_cleared", getattr(ctx.guild, "id", None), "success")
-        )
+        await ctx.send(":white_check_mark: **Cleared all your Highlights.**")
 
 
-def setup(bot: QuoteBot) -> None:
-    bot.add_cog(Highlights(bot))
+async def setup(bot: QuoteBot) -> None:
+    await bot.add_cog(Highlights(bot))

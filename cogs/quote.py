@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -47,13 +47,14 @@ class Main(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, msg: discord.Message) -> None:
         ctx: MessageRetrievalContext = await self.bot.get_context(msg)
-        if ctx.valid or msg.author.bot or not msg.guild:
+        if ctx.valid or not msg.guild:
             return
         async with self.bot.db_connect() as con:
             if await con.is_blocked(msg.guild.id) or not await con.fetch_quote_links(msg.guild.id):
                 return
         msg_urls = ctx.get_message_urls()
         if (msg_url := next(msg_urls, None)) and next(msg_urls, None) is None:
+            # message contains 1 message link
             try:
                 quoted_msg = await ctx.get_message(msg_url.group(0))
                 await self.bot.quote_message(quoted_msg, msg.channel, str(msg.author), "link")
@@ -74,7 +75,6 @@ class Main(commands.Cog):
             channel_or_thread.permissions_for(payload.member).send_messages
             and perms.read_message_history
             and perms.send_messages
-            and perms.embed_links
         ):
             try:
                 msg = channel_or_thread._state._get_message(payload.message_id) or await channel_or_thread.fetch_message(
@@ -85,27 +85,26 @@ class Main(commands.Cog):
                 pass
 
     async def _send_quote(self, ctx: MessageRetrievalContext, query: Optional[str]) -> None:
-        guild_id = getattr(ctx.guild, "id", None)
         if query is None:
             try:
                 async for msg in ctx.channel.history(limit=1, before=ctx.message):
                     await self.bot.quote_message(msg, ctx.channel, str(ctx.author))
             except _QUOTE_EXCEPTIONS:
-                await ctx.send(await self.bot.localize("QUOTE_quote_nomessage", guild_id, "error"))
+                await ctx.send(":x: **Couldn't find the message.**")
         else:
             try:
                 msg = await ctx.get_message(query)
                 await self.bot.quote_message(msg, ctx.channel, str(ctx.author))
             except discord.Forbidden:
-                await ctx.send(await self.bot.localize("QUOTE_quote_noperms", guild_id, "error"))
+                await ctx.send(":x: **I don't have permissions to read messages from that channel.**")
             except commands.BadArgument:
-                await ctx.send(await self.bot.localize("QUOTE_quote_nomessage", guild_id, "error"))
+                await ctx.send(":x: **Couldn't find the message.**")
             except commands.UserInputError:
-                await ctx.send(await self.bot.localize("QUOTE_quote_inputerror", guild_id, "error"))
+                await ctx.send(":x: **Please specify a valid message ID/URL or regular expression.**")
 
     async def _send_cloned_messages(self, ctx: commands.Context, msg_limit: int, channel: discord.TextChannel) -> None:
         webhook = await ctx.channel.create_webhook(name=self.bot.user.name)
-        messages = await channel.history(limit=msg_limit, before=ctx.message).flatten()
+        messages = [msg async for msg in channel.history(limit=msg_limit, before=ctx.message)]
         ignored_exceptions = (discord.HTTPException, discord.NotFound, discord.Forbidden)
         try:
             await webhook_copy(webhook, messages.pop(), clean_content := ctx.guild != channel.guild)
@@ -126,13 +125,11 @@ class Main(commands.Cog):
     @commands.command(aliases=["q"])
     @delete_message_if_needed
     async def quote(self, ctx: MessageRetrievalContext, *, query: str = None) -> None:
-        await ctx.trigger_typing()
+        """Quote a message using an ID, link or a regular expression matching the content."""
+        await ctx.typing()
         if ctx.guild is not None:
             perms = ctx.channel.permissions_for(ctx.me)
             if not perms.send_messages:
-                return
-            if not perms.embed_links:
-                await ctx.send(await self.bot.localize("META_perms_noembed", getattr(ctx.guild, "id", None), "error"))
                 return
         await self._send_quote(ctx, query)
 
@@ -140,17 +137,21 @@ class Main(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
     @commands.cooldown(rate=2, per=300, type=commands.BucketType.guild)
-    async def clone(self, ctx: commands.Context, msg_limit: int, channel: discord.TextChannel) -> None:
-        guild_id = getattr(ctx.guild, "id", None)
+    async def clone(self, ctx: commands.Context, source_channel: discord.TextChannel, number_of_messages: int) -> None:
+        """
+        Clone up to 50 messages from one channel to another using a webhook.
+
+        Requires the 'Manage Webhooks' permission.
+        """
         if isinstance(ctx.channel, discord.Thread):
-            await ctx.send(await self.bot.localize("META_command_nothreads", guild_id, "error"))
+            await ctx.send(":x: **This command can't be used in threads.**")
         elif not ctx.channel.permissions_for(ctx.me).manage_webhooks:
-            await ctx.send(await self.bot.localize("META_perms_nowebhook", guild_id, "error"))
-        elif msg_limit < 1 or msg_limit > _MAX_CLONE_MESSAGES:
-            await ctx.send(await self.bot.localize("QUOTE_clone_msglimit", guild_id, "error"))
+            await ctx.send(":x: **I don't have permissions to manage webhooks in this channel.**")
+        elif number_of_messages < 1 or number_of_messages > _MAX_CLONE_MESSAGES:
+            await ctx.send(f":x: **You can only clone 1 to {_MAX_CLONE_MESSAGES} messages.**")
         else:
-            await self._send_cloned_messages(ctx, msg_limit, channel)
+            await self._send_cloned_messages(ctx, number_of_messages, source_channel)
 
 
-def setup(bot: QuoteBot) -> None:
-    bot.add_cog(Main(bot))
+async def setup(bot: QuoteBot) -> None:
+    await bot.add_cog(Main(bot))

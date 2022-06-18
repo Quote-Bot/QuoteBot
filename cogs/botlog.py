@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -29,12 +29,12 @@ class BotLog(commands.Cog):
         botlog_webhook_url = self.bot.config["botlog_webhook_url"]
         try:
             self.webhook = discord.Webhook.from_url(botlog_webhook_url, session=self.bot.session)
-        except discord.InvalidArgument:
+        except ValueError:
             print(f"Invalid botlog webhook url: '{botlog_webhook_url}'. Botlog extension will be unloaded.", file=sys.stderr)
-            self._unload()
+            self.bot.loop.create_task(self._unload())
 
-    def _unload(self) -> None:
-        self.bot.unload_extension("cogs.botlog")
+    async def _unload(self) -> None:
+        await self.bot.unload_extension("cogs.botlog")
 
     async def _send_guild_update(self, guild: discord.Guild, join: bool = True) -> None:
         bot = self.bot
@@ -46,15 +46,13 @@ class BotLog(commands.Cog):
             await self.webhook.send(
                 username=bot.user.name,
                 avatar_url=getattr(bot.user.avatar, "url", DEFAULT_AVATAR_URL),
-                content=(
-                    await bot.localize(
-                        f"BOTLOG_guild_{'join' if join else 'remove'}", None, f"guild_{'add' if join else 'remove'}"
-                    )
-                ).format(discord.utils.escape_markdown(guild.name), guild.id, guild.member_count, len(bot.guilds)),
+                content=f":{'in' if join else 'out'}box_tray: **Guild {'added' if join else 'removed'}: "
+                f"{discord.utils.escape_markdown(guild.name)}** (ID: {guild.id})\n"
+                f"Total guild members: {guild.member_count}\nTotal guilds: {len(bot.guilds)}",
             )
         except discord.NotFound:
             print("The configured botlog webhook was not found. Botlog extension will be unloaded.", file=sys.stderr)
-            self._unload()
+            await self._unload()
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild) -> None:
@@ -65,5 +63,5 @@ class BotLog(commands.Cog):
         await self._send_guild_update(guild, join=False)
 
 
-def setup(bot: QuoteBot) -> None:
-    bot.add_cog(BotLog(bot))
+async def setup(bot: QuoteBot) -> None:
+    await bot.add_cog(BotLog(bot))

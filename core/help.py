@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 JonathanFeenstra, Deivedux, kageroukw
+Copyright (C) 2020-2022 JonathanFeenstra, Deivedux, kageroukw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,18 @@ from discord.ext import commands
 
 
 class QuoteBotHelpCommand(commands.HelpCommand):
+    _PERMISSIONS = discord.Permissions(
+        view_channel=True,
+        view_audit_log=True,
+        manage_webhooks=True,
+        send_messages=True,
+        embed_links=True,
+        attach_files=True,
+        external_emojis=True,
+        manage_messages=True,
+        read_message_history=True,
+    )
+
     def command_not_found(self, string: str) -> str:
         return string
 
@@ -31,21 +43,19 @@ class QuoteBotHelpCommand(commands.HelpCommand):
         ctx = self.context
         bot = ctx.bot
         prefix = (await bot.get_prefix(ctx.message))[-1]
-        guild_id = getattr(ctx.guild, "id", None)
         embed = discord.Embed(color=(ctx.guild and ctx.guild.me.color.value) or bot.config["default_embed_color"])
         embed.add_field(
-            name=await bot.localize("HELPEMBED_links", guild_id),
-            value=f"[{await bot.localize('HELPEMBED_supportserver', guild_id)}](https://discord.gg/vkWyTGa)\n"
-            f"[{await bot.localize('HELPEMBED_addme', guild_id)}](https://discordapp.com/oauth2/authorize?client_id="
-            f"{bot.user.id}&permissions=537257984&scope=bot)\n"
-            f"[{await bot.localize('HELPEMBED_website', guild_id)}](https://quote-bot.tk/)\n"
+            name="Links",
+            value="[Support Server](https://discord.gg/vkWyTGa)\n"
+            f"[Add Me]({discord.utils.oauth_url(bot.user.id, permissions=self._PERMISSIONS)})"
+            "[Website](https://quote-bot.tk/)\n"
             "[GitHub](https://github.com/Quote-Bot/QuoteBot)",
         )
         embed.add_field(
-            name=await bot.localize("HELPEMBED_commands", guild_id),
+            name="Commands",
             value=", ".join(f"`{prefix}{command}`" for command in sorted(c.name for c in bot.commands)),
         )
-        embed.set_footer(text=(await bot.localize("HELPEMBED_footer", guild_id)).format(prefix))
+        embed.set_footer(text=f"Use `{prefix}command` for more info on a command.")
         await ctx.send(embed=embed)
 
     async def send_cog_help(self, cog: commands.Cog) -> None:
@@ -53,17 +63,12 @@ class QuoteBotHelpCommand(commands.HelpCommand):
 
     async def send_command_help(self, command: commands.Command) -> None:
         ctx = self.context
-        bot = ctx.bot
         embed = discord.Embed(
-            color=(ctx.guild and ctx.guild.me.color.value) or bot.config["default_embed_color"],
+            color=(ctx.guild and ctx.guild.me.color.value) or ctx.bot.config["default_embed_color"],
             title=self.get_command_signature(command),
-            description=await bot.localize(f"HELP_{command.name}", getattr(ctx.guild, "id", None)),
+            description=command.help,
         )
         await ctx.send(embed=embed)
 
-    async def send_error_message(self, error: Exception) -> discord.Message:
-        ctx = self.context
-        bot = ctx.bot
-        return await ctx.send(
-            (await bot.localize("HELP_notfound", getattr(ctx.guild, "id", None), "error")).format(repr(error))
-        )
+    async def send_error_message(self, error: str) -> discord.Message:
+        return await self.context.send(f":x: **An error occurred in the help command:**\n```\n{error}\n```")
