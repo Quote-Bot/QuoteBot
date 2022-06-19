@@ -100,7 +100,7 @@ class Snipe(commands.Cog):
         except KeyError:
             await ctx.send(":x: **Couldn't find the message.**")
         else:
-            await self.bot.quote_message(msg, ctx.channel, str(ctx.author), "snipe")
+            await self.bot.quote_message(msg, ctx.channel, ctx.send, str(ctx.author), "snipe")
 
     async def _snipe_if_permitted(
         self, ctx: commands.Context, channel_or_thread: TextChannelOrThread, edit: bool = False
@@ -125,7 +125,7 @@ class Snipe(commands.Cog):
         async with self.bot.db_connect() as con:
             return not await con.fetch_snipe_requires_manage_messages(channel_or_thread.guild.id)
 
-    @commands.command()
+    @commands.hybrid_command()
     @delete_message_if_needed
     async def snipe(
         self, ctx: commands.Context, channel_or_thread: Optional[GlobalTextChannelOrThreadConverter] = None
@@ -133,7 +133,7 @@ class Snipe(commands.Cog):
         """Snipe the last cached deleted message from a specified channel or the current channel."""
         await self._snipe_if_permitted(ctx, channel_or_thread)  # type: ignore
 
-    @commands.command()
+    @commands.hybrid_command()
     @delete_message_if_needed
     async def snipeedit(
         self, ctx: commands.Context, channel_or_thread: Optional[GlobalTextChannelOrThreadConverter] = None

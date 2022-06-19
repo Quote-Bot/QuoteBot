@@ -23,7 +23,7 @@ class Settings(commands.Cog):
     def __init__(self, bot: QuoteBot) -> None:
         self.bot = bot
 
-    @commands.command(aliases=["togglereactions", "togglereact", "reactions"])
+    @commands.hybrid_command(aliases=["togglereactions", "togglereact", "reactions"])
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
     async def togglereaction(self, ctx: commands.Context) -> None:
@@ -38,7 +38,7 @@ class Settings(commands.Cog):
             await con.commit()
         await ctx.send(f":white_check_mark: **Quoting messages by adding reactions {'enabled' if new else 'disabled'}.**")
 
-    @commands.command(aliases=["links"])
+    @commands.hybrid_command(aliases=["links"])
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
     async def togglelinks(self, ctx: commands.Context) -> None:
@@ -53,7 +53,7 @@ class Settings(commands.Cog):
             await con.commit()
         await ctx.send(f":white_check_mark: **Quoting linked messages {'enabled' if new else 'disabled'}.**")
 
-    @commands.command(aliases=["delcommands", "delete"])
+    @commands.hybrid_command(aliases=["delcommands", "delete"])
     @commands.has_permissions(manage_guild=True)
     @commands.bot_has_guild_permissions(manage_messages=True)
     @commands.guild_only()
@@ -69,7 +69,7 @@ class Settings(commands.Cog):
             await con.commit()
         await ctx.send(f":white_check_mark: **Deleting quote command messages {'enabled' if new else 'disabled'}.**")
 
-    @commands.command(aliases=["snipepermission", "snipeperms"])
+    @commands.hybrid_command(aliases=["snipepermission", "snipeperms"])
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
     async def togglesnipepermission(self, ctx: commands.Context) -> None:
@@ -86,7 +86,7 @@ class Settings(commands.Cog):
             f":white_check_mark: **Snipe commands {'now' if new else 'no longer'} require the 'Manage Messages' permission.**"
         )
 
-    @commands.command(aliases=["prefix"])
+    @commands.hybrid_command(aliases=["prefix"])
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
     async def setprefix(self, ctx: commands.Context, prefix: str) -> None:

@@ -16,9 +16,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import re
 import sqlite3
-from typing import Iterable
+from typing import Iterable, List
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from bot import QuoteBot
@@ -60,17 +61,17 @@ class Highlights(commands.Cog):
             elif user_id not in seen_user_ids and _should_send_highlight(msg, member, query):
                 seen_user_ids.add(user_id)
                 try:
-                    await self.bot.quote_message(msg, member, str(member), "highlight")
+                    await self.bot.quote_message(msg, member, member.send, str(member), "highlight")
                 except discord.Forbidden:
                     await con.clear_user_highlights(user_id)
                 except discord.HTTPException:
                     continue
         await con.commit()
 
-    @commands.command(aliases=["hl", "hladd"])
+    @commands.hybrid_command(aliases=["hl", "hladd"])
     async def highlight(self, ctx: commands.Context, *, pattern: str) -> None:
         """
-        Highlight a regular expression pattern of up to 50 characters so every message in a mutual server channel containing it will be quoted to you.
+        Highlight mutual server messages matching a regex pattern of up to 50 characters to your DMs.
 
         Requires allowing direct messages from server members in your 'Privacy & Safety' settings.
         """
@@ -99,7 +100,7 @@ class Highlights(commands.Cog):
             await con.commit()
         await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` added.**")
 
-    @commands.command(aliases=["highlights", "hllist"])
+    @commands.hybrid_command(aliases=["highlights", "hllist"])
     async def highlightlist(self, ctx: commands.Context) -> None:
         """List your Highlights."""
         async with self.bot.db_connect() as con:
@@ -117,7 +118,7 @@ class Highlights(commands.Cog):
         else:
             await ctx.send(":x: **You don't have any Highlights.**")
 
-    @commands.command(aliases=["hlremove", "hldelete", "hldel"])
+    @commands.hybrid_command(aliases=["hlremove", "hldelete", "hldel"])
     async def highlightremove(self, ctx: commands.Context, *, pattern: str) -> None:
         """Remove a Highlight."""
         async with self.bot.db_connect() as con:
@@ -131,7 +132,18 @@ class Highlights(commands.Cog):
             await con.commit()
         await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` removed.**")
 
-    @commands.command(aliases=["hlclear"])
+    @highlightremove.autocomplete("pattern")
+    async def _pattern_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+        async with self.bot.db_connect() as con:
+            return [
+                app_commands.Choice(
+                    name=pattern,
+                    value=pattern,
+                )
+                for pattern in await con.fetch_user_highlights_starting_with(interaction.user.id, current)
+            ]
+
+    @commands.hybrid_command(aliases=["hlclear"])
     async def highlightclear(self, ctx: commands.Context) -> None:
         """Clear all your Highlights."""
         async with self.bot.db_connect() as con:

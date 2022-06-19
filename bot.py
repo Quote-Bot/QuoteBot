@@ -20,7 +20,7 @@ import json
 import os
 from sys import stderr
 from traceback import print_tb
-from typing import Iterable, NamedTuple, Optional
+from typing import Awaitable, Callable, List, Iterable, NamedTuple, Optional, Set
 
 import discord
 from aiohttp import ClientSession
@@ -41,15 +41,16 @@ class QuoteBot(commands.AutoShardedBot):
     _QUOTE_TYPE_TEXT = {
         "quote": QuoteText("Quoted", "quoted"),
         "link": QuoteText("Linked", "linked"),
-        "personal_quote": QuoteText("Personal Quote", "(Personal Quote)"),
-        "server_quote": QuoteText("Server Quote", "(Server Quote)"),
+        "personal": QuoteText("Personal Quote", "(Personal Quote)"),
+        "server": QuoteText("Server Quote", "(Server Quote)"),
         "snipe": QuoteText("Sniped", "sniped"),
     }
+    owner_ids: Set[int]
 
     def __init__(self, config: dict) -> None:
         super().__init__(
             help_command=QuoteBotHelpCommand(),
-            command_prefix=self.get_prefix,
+            command_prefix=self.get_prefix,  # type: ignore
             case_insensitive=True,
             owner_ids=set(config["owner_ids"]),
             status=discord.Status.idle,
@@ -102,7 +103,7 @@ class QuoteBot(commands.AutoShardedBot):
     async def get_context(self, msg: discord.Message, *, cls=MessageRetrievalContext) -> MessageRetrievalContext:
         return await super().get_context(msg, cls=cls)
 
-    async def get_prefix(self, msg: discord.Message) -> list[str]:
+    async def get_prefix(self, msg: discord.Message) -> List[str]:
         prefix = self.config["default_prefix"]
         if msg.guild:
             async with self.db_connect() as con:
@@ -153,21 +154,24 @@ class QuoteBot(commands.AutoShardedBot):
         await con.insert_guild(guild_id, self.config["default_prefix"])
 
     async def quote_message(
-        self, msg: discord.Message, destination: discord.abc.Messageable, quoted_by: str, quote_type: str = "quote"
-    ) -> discord.Message:
+        self,
+        msg: discord.Message,
+        destination: discord.abc.Messageable,
+        send_method: Callable[..., Awaitable[Optional[discord.Message]]],
+        quoted_by: str,
+        quote_type: str = "quote",
+    ) -> Optional[discord.Message]:
         destination_guild = getattr(destination, "guild", None)
         if self._is_quote(msg):
-            return await self._requote_message(msg, destination, quoted_by, quote_type)
-
+            return await self._requote_message(msg, destination_guild, send_method, quoted_by, quote_type)
         if not msg.content and msg.embeds:
-            return await destination.send(
+            return await send_method(
                 self._get_raw_embed_quote_content(msg, quoted_by, quote_type, destination_guild),
                 embed=msg.embeds[0],
             )
-
         embed = await self._create_quote_embed(msg, destination)
         self._format_quote_embed_footer(msg, quoted_by, quote_type, destination_guild, embed)
-        return await destination.send(embed=embed)
+        return await send_method(embed=embed)
 
     def _is_quote(self, msg: discord.Message) -> bool:
         if msg.author == self.user and len(msg.embeds) == 1:
@@ -180,58 +184,63 @@ class QuoteBot(commands.AutoShardedBot):
     async def _create_quote_embed(self, msg: discord.Message, destination: discord.abc.Messageable) -> discord.Embed:
         embed = discord.Embed(
             description=msg.content if msg.guild == getattr(destination, "guild", None) else msg.clean_content,
-            color=msg.author.color.value,
+            color=msg.author.color.value or None,
             timestamp=msg.created_at,
         )
         embed.set_author(
-            name=str(msg.author), url=msg.jump_url, icon_url=getattr(msg.author.avatar, "url", DEFAULT_AVATAR_URL)
+            name=str(msg.author), url=msg.jump_url, icon_url=getattr(msg.author.display_avatar, "url", DEFAULT_AVATAR_URL)
         )
-
-        # TODO: embed images from imgur, Gyazo, etc.
         if msg.attachments:
-            if (
-                not isinstance(msg.channel, (discord.abc.PrivateChannel, discord.PartialMessageable))
-                and msg.channel.is_nsfw()
-                and (
-                    isinstance(destination, (discord.abc.PrivateChannel, discord.PartialMessageable, discord.User))
-                    or not destination.is_nsfw()
-                )
-            ):
-                embed.add_field(
-                    name="Attachment(s)",
-                    value=f":underage: **Message quoted from an NSFW channel.**",
-                )
-            elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(
-                (".jpg", ".jpeg", ".jfif", ".png", ".gif", ".gifv", ".webp", ".bmp", ".svg", ".tiff")
-            ):
-                embed.set_image(url=url)
-            else:
-                embed.add_field(
-                    name="Attachment(s)",
-                    value="\n".join(f"[{attachment.filename}]({attachment.url})" for attachment in msg.attachments),
-                )
-
+            self._embed_attachments(msg, destination, embed)
         return embed
 
+    def _embed_attachments(
+        self, msg: discord.Message, destination_channel: discord.abc.Messageable, embed: discord.Embed
+    ) -> None:
+        # TODO: embed images from imgur, Gyazo, etc.
+        if (
+            isinstance(msg.channel, discord.abc.GuildChannel)
+            and msg.channel.is_nsfw()
+            and isinstance(destination_channel, discord.abc.GuildChannel)
+            and not destination_channel.is_nsfw()
+        ):
+            embed.add_field(
+                name="Attachment(s)",
+                value=f":underage: **Message quoted from an NSFW channel.**",
+            )
+        elif len(msg.attachments) == 1 and (url := msg.attachments[0].url).lower().endswith(
+            (".jpg", ".jpeg", ".jfif", ".png", ".gif", ".gifv", ".webp", ".bmp", ".svg", ".tiff")
+        ):
+            embed.set_image(url=url)
+        else:
+            embed.add_field(
+                name="Attachment(s)",
+                value="\n".join(f"[{attachment.filename}]({attachment.url})" for attachment in msg.attachments),
+            )
+
     async def _requote_message(
-        self, msg: discord.Message, destination: discord.abc.Messageable, quoted_by: str, quote_type: str
-    ) -> discord.Message:
+        self,
+        msg: discord.Message,
+        destination_guild: Optional[discord.Guild],
+        send_method: Callable[..., Awaitable[Optional[discord.Message]]],
+        quoted_by: str,
+        quote_type: str,
+    ) -> Optional[discord.Message]:
         embed = msg.embeds[0]
-        destination_guild = getattr(destination, "guild", None)
         if msg.content:
             # raw embed quote
             msg.content = self._get_raw_embed_quote_content(msg, quoted_by, quote_type, destination_guild)
         else:
             self._format_quote_embed_footer(msg, quoted_by, quote_type, destination_guild, embed)
-        return await destination.send(content=msg.content, embed=embed)
+        return await send_method(content=msg.content, embed=embed)
 
     def _get_raw_embed_quote_content(
         self, msg: discord.Message, quoted_by: str, quote_type: str, destination_guild: Optional[discord.Guild]
     ) -> str:
         if quote_type == "highlight":
             return f"Raw embed highlighted from {msg.author.mention} in {msg.channel.mention} ({msg.guild.name})"
-        source = (self.user if isinstance(msg.channel, discord.abc.PrivateChannel) else msg.channel).mention
-        if destination_guild is not None and msg.guild != destination_guild:
+        source = (self.user if msg.channel.type == discord.ChannelType.private else msg.channel).mention
+        if destination_guild is not None and msg.guild is not None and msg.guild != destination_guild:
             source = f"{source} ({msg.guild.name})"
         return f"Raw embed {self._QUOTE_TYPE_TEXT[quote_type].raw_embed} by @\u200b{quoted_by} from @\u200b{msg.author} in {source}"
 
@@ -246,11 +255,11 @@ class QuoteBot(commands.AutoShardedBot):
         if quote_type == "highlight":
             embed.set_footer(text=f"Highlighted from #{msg.channel} ({msg.guild.name})")
             return
-        source = self.user if isinstance(msg.channel, discord.DMChannel) else f"#{msg.channel.name}"
-        if destination_guild is not None and msg.guild != destination_guild:
+        source = self.user if msg.channel.type == discord.ChannelType.private else f"#{msg.channel.name}"
+        if destination_guild is not None and msg.guild is not None and msg.guild != destination_guild:
             source = f"{source} ({msg.guild.name})"
         embed.set_footer(
-            text=f"{self._QUOTE_TYPE_TEXT[quote_type].footer} by @\u200b{quoted_by} from @\u200b{msg.author} in {source}"
+            text=f"{self._QUOTE_TYPE_TEXT[quote_type].footer} by @\u200b{quoted_by} from @\u200b{msg.author}{f' in {source}' if source != msg.author else ''}"
         )
 
     async def on_ready(self) -> None:
@@ -304,6 +313,8 @@ class QuoteBot(commands.AutoShardedBot):
             await ctx.send(f":x: **This command is on cooldown. Try again in {round(error.retry_after, 1)} seconds.**")
         elif isinstance(error, commands.CheckFailure):
             await ctx.send(":x: **You don't have permission to use this command.**")
+        elif ctx.command is None:
+            return
         elif isinstance(error, commands.UserInputError):
             await ctx.send(
                 f":x: **Invalid command input. See `{ctx.prefix}help {ctx.command.qualified_name}` for usage info.**"
