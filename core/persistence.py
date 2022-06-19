@@ -16,7 +16,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import sqlite3
 from os import PathLike
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Iterable, Optional, Tuple, Union
 
 from aiosqlite import Connection
 from aiosqlite.context import contextmanager
@@ -150,17 +150,18 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
     async def fetch_highlights(self) -> Iterable[sqlite3.Row]:
         return await self.execute_fetchall("SELECT * FROM highlight")
 
-    async def fetch_user_highlights(self, user_id: int) -> tuple[str, ...]:
+    async def fetch_user_highlights(self, user_id: int) -> Tuple[str, ...]:
         rows = await self.execute_fetchall("SELECT query FROM highlight WHERE user_id = ?", (user_id,))
         return tuple(row[0] for row in rows)
 
     async def fetch_user_highlight_count(self, user_id: int) -> int:
         return (await self.execute_fetchone("SELECT COUNT(query) FROM highlight WHERE user_id = ?", (user_id,)))[0]  # type: ignore
 
-    async def fetch_user_highlights_starting_with(self, user_id: int, prefix: str) -> Iterable[sqlite3.Row]:
-        return await self.execute_fetchall(
+    async def fetch_user_highlights_starting_with(self, user_id: int, prefix: str) -> Tuple[str, ...]:
+        rows = await self.execute_fetchall(
             "SELECT query FROM highlight WHERE user_id = ? AND query LIKE ?", (user_id, f"{prefix}%")
         )
+        return tuple(row[0] for row in rows)
 
     async def delete_highlight(self, user_id: int, query: str) -> None:
         await self.execute("DELETE FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))

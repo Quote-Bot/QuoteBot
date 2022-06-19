@@ -14,7 +14,9 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import List
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from bot import QuoteBot
@@ -50,7 +52,9 @@ class SavedQuotes(commands.Cog):
                     # Message is a DM
                     try:
                         msg = await lazy_load_message(ctx.author, msg_id)
-                        await self.bot.quote_message(msg, ctx.channel, str(ctx.author), "server" if server else "personal")
+                        await self.bot.quote_message(
+                            msg, ctx.channel, ctx.send, str(ctx.author), "server" if server else "personal"
+                        )
                     except discord.Forbidden:
                         await con.delete_saved_quote(owner_id, alias)
                         await con.commit()
@@ -69,7 +73,7 @@ class SavedQuotes(commands.Cog):
     ) -> None:
         try:
             msg = await ctx.get_channel_or_thread_message(msg_tuple)
-            await self.bot.quote_message(msg, ctx.channel, str(ctx.author), "server" if server else "personal")
+            await self.bot.quote_message(msg, ctx.channel, ctx.send, str(ctx.author), "server" if server else "personal")
         except commands.BadArgument as error:
             await con.enable_foreign_keys()
             if isinstance(error, commands.MessageNotFound):
@@ -181,72 +185,101 @@ class SavedQuotes(commands.Cog):
             await con.delete_message(msg.id)
             await con.commit()
 
-    @commands.command(aliases=["personal", "pquote", "pq"])
+    @commands.hybrid_command(aliases=["personal", "pquote", "pq"])
     @delete_message_if_needed
     async def personalquote(self, ctx: MessageRetrievalContext, alias: str) -> None:
         """Send the specified Personal Quote."""
         await self.send_saved_quote(ctx, alias)
 
-    @commands.command(aliases=["plist"])
+    @commands.hybrid_command(aliases=["plist"])
     async def personallist(self, ctx: commands.Context) -> None:
         """List all your Personal Quotes."""
         await self.send_list(ctx)
 
-    @commands.command(aliases=["pset"])
+    @commands.hybrid_command(aliases=["pset"])
     async def personalset(self, ctx: MessageRetrievalContext, alias: str, *, query: str) -> None:
         """Set a Personal Quote that you can quote in any mutual server."""
         await self.set_saved_quote(ctx, alias, query)
 
-    @commands.command(aliases=["pcopy"])
+    @commands.hybrid_command(aliases=["pcopy"])
     async def personalcopy(self, ctx: commands.Context, owner_id: int, alias: str) -> None:
         """Copy a Personal/Server Quote so you can use it yourself."""
         await self.copy_quote(ctx, owner_id, alias)
 
-    @commands.command(aliases=["premove", "pdelete", "pdel"])
+    @commands.hybrid_command(aliases=["premove", "pdelete", "pdel"])
     async def personalremove(self, ctx: commands.Context, alias: str) -> None:
         """Remove a Personal Quote."""
         await self.remove_quote(ctx, alias)
 
-    @commands.command(aliases=["pclear"])
+    @commands.hybrid_command(aliases=["pclear"])
     async def personalclear(self, ctx: commands.Context) -> None:
         """Clear all your Personal Quotes."""
         await self.clear_quotes(ctx)
 
-    @commands.command(aliases=["server", "squote", "sq"])
+    @personalquote.autocomplete("alias")
+    @personalremove.autocomplete("alias")
+    async def _personal_alias_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> List[app_commands.Choice[str]]:
+        async with self.bot.db_connect() as con:
+            return [
+                app_commands.Choice(
+                    name=alias,
+                    value=alias,
+                )
+                for alias in await con.fetch_owner_aliases(interaction.user.id)
+                if current.lower() in alias.lower()
+            ]
+
+    @commands.hybrid_command(aliases=["server", "squote", "sq"])
     @commands.guild_only()
     @delete_message_if_needed
     async def serverquote(self, ctx: MessageRetrievalContext, alias: str) -> None:
         """Send the specified Server Quote."""
         await self.send_saved_quote(ctx, alias, True)
 
-    @commands.command(aliases=["slist"])
+    @commands.hybrid_command(aliases=["slist"])
     @commands.guild_only()
     async def serverlist(self, ctx: commands.Context) -> None:
         """List all Server Quotes."""
         await self.send_list(ctx, True)
 
-    @commands.command(aliases=["sset"])
+    @commands.hybrid_command(aliases=["sset"])
     @commands.has_permissions(manage_messages=True)
     @commands.guild_only()
     async def serverset(self, ctx: MessageRetrievalContext, alias: str, *, query: str) -> None:
         """Set a Server Quote that can be quoted in this server.."""
         await self.set_saved_quote(ctx, alias, query, True)
 
-    @commands.command(aliases=["scopy"])
+    @commands.hybrid_command(aliases=["scopy"])
     @commands.has_permissions(manage_messages=True)
     @commands.guild_only()
     async def servercopy(self, ctx: commands.Context, owner_id: int, alias: str) -> None:
         """Copy a Personal/Server Quote so it can be quoted in this server."""
         await self.copy_quote(ctx, owner_id, alias, True)
 
-    @commands.command(aliases=["sremove", "sdelete", "sdel"])
+    @commands.hybrid_command(aliases=["sremove", "sdelete", "sdel"])
     @commands.has_permissions(manage_messages=True)
     @commands.guild_only()
     async def serverremove(self, ctx: commands.Context, alias: str) -> None:
         """Remove a Server Quote."""
         await self.remove_quote(ctx, alias, True)
 
-    @commands.command(aliases=["sclear"])
+    @serverquote.autocomplete("alias")
+    @serverremove.autocomplete("alias")
+    async def _server_alias_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> List[app_commands.Choice[str]]:
+        async with self.bot.db_connect() as con:
+            return [
+                app_commands.Choice(
+                    name=alias,
+                    value=alias,
+                )
+                for alias in await con.fetch_owner_aliases(interaction.guild.id)
+            ]
+
+    @commands.hybrid_command(aliases=["sclear"])
     @commands.has_permissions(manage_messages=True)
     @commands.guild_only()
     async def serverclear(self, ctx: commands.Context) -> None:

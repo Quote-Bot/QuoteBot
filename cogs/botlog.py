@@ -38,14 +38,15 @@ class BotLog(commands.Cog):
 
     async def _send_guild_update(self, guild: discord.Guild, join: bool = True) -> None:
         bot = self.bot
+        if bot.user is None:
+            return
         async with bot.db_connect() as con:
             if await con.is_blocked(guild.id):
                 return
-
         try:
             await self.webhook.send(
                 username=bot.user.name,
-                avatar_url=getattr(bot.user.avatar, "url", DEFAULT_AVATAR_URL),
+                avatar_url=getattr(bot.user.display_avatar, "url", DEFAULT_AVATAR_URL),
                 content=f":{'in' if join else 'out'}box_tray: **Guild {'added' if join else 'removed'}: "
                 f"{discord.utils.escape_markdown(guild.name)}** (ID: {guild.id})\n"
                 f"Total guild members: {guild.member_count}\nTotal guilds: {len(bot.guilds)}",

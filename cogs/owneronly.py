@@ -14,8 +14,9 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Literal, Optional
+from typing import List
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from bot import QuoteBot
@@ -28,18 +29,7 @@ class OwnerOnly(commands.Cog):
     async def cog_check(self, ctx: commands.Context) -> bool:
         return await self.bot.is_owner(ctx.author)
 
-    @commands.command(aliases=["kick"])
-    async def leave(self, ctx: commands.Context, guild_id: int) -> None:
-        """Make bot leave the server with the specified ID (owner only)."""
-        if guild := self.bot.get_guild(guild_id):
-            await guild.leave()
-            await ctx.send(
-                f":white_check_mark: **Left server `{discord.utils.escape_markdown(guild.name)}`.**", ephemeral=True
-            )
-        else:
-            await ctx.send(":x: **Server not found.**", ephemeral=True)
-
-    @commands.command(aliases=["reloadextension"])
+    @commands.hybrid_command(aliases=["reloadextension"])
     async def reload(self, ctx: commands.Context, extension: str) -> None:
         """Reload an extension (owner only)."""
         try:
@@ -49,9 +39,30 @@ class OwnerOnly(commands.Cog):
         else:
             await ctx.send(f":white_check_mark: **Reloaded extension `{extension}`.**", ephemeral=True)
 
-    @commands.command()
+    @reload.autocomplete("extension")
+    async def _extensions_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> List[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(name=name, value=name.lower())
+            for name in self.bot.cogs.keys()
+            if current.lower() in name.lower()
+        ]
+
+    @commands.hybrid_command(aliases=["kick"])
+    async def leave(self, ctx: commands.Context, guild_id: int) -> None:
+        """Make bot leave the specified server (owner only)."""
+        if guild := self.bot.get_guild(guild_id):
+            await guild.leave()
+            await ctx.send(
+                f":white_check_mark: **Left server `{discord.utils.escape_markdown(guild.name)}`.**", ephemeral=True
+            )
+        else:
+            await ctx.send(":x: **Server not found.**", ephemeral=True)
+
+    @commands.hybrid_command()
     async def block(self, ctx: commands.Context, guild_id: int) -> None:
-        """Block the server with the specified ID (owner only)."""
+        """Block the specified server (owner only)."""
         async with self.bot.db_connect() as con:
             await con.insert_blocked_id(guild_id)
             await con.commit()
@@ -59,9 +70,20 @@ class OwnerOnly(commands.Cog):
         if guild := self.bot.get_guild(guild_id):
             await guild.leave()
 
-    @commands.command()
+    @leave.autocomplete("guild_id")
+    @block.autocomplete("guild_id")
+    async def _current_guilds_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> List[app_commands.Choice[int]]:
+        return [
+            app_commands.Choice(name=guild.name, value=guild.id)
+            for guild in self.bot.guilds
+            if current.lower() in guild.name.lower() or current in str(guild.id)
+        ]
+
+    @commands.hybrid_command()
     async def unblock(self, ctx: commands.Context, guild_id: int) -> None:
-        """Unblock the server with the specified ID (owner only)."""
+        """Unblock the specified server (owner only)."""
         async with self.bot.db_connect() as con:
             if not await con.is_blocked(guild_id):
                 await ctx.send(":x: **Server was not blocked.**", ephemeral=True)
@@ -70,7 +92,24 @@ class OwnerOnly(commands.Cog):
                 await con.commit()
                 await ctx.send(":white_check_mark: **Server unblocked.**", ephemeral=True)
 
-    @commands.command(aliases=["logout", "close"])
+    @unblock.autocomplete("guild_id")
+    async def _blocked_guilds_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> List[app_commands.Choice[int]]:
+        async with self.bot.db_connect() as con:
+            return [
+                app_commands.Choice(name=str(blocked_id), value=blocked_id)
+                for blocked_id in await con.fetch_blocked_ids()
+                if current in str(blocked_id)
+            ]
+
+    @commands.hybrid_command()
+    async def sync(self, ctx: commands.Context) -> None:
+        """Sync the application commands to Discord (owner only)."""
+        commands = await self.bot.tree.sync()
+        await ctx.send(f":white_check_mark: **Synced {len(commands)} commands.**", ephemeral=True)
+
+    @commands.hybrid_command(aliases=["logout", "close"])
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shutdown the bot (owner only)."""
         try:
