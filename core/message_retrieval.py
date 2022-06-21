@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import re
-from typing import Iterator, NamedTuple, Optional
+from typing import Iterator, AsyncGenerator, NamedTuple, Optional
 
 import discord
 from discord.ext import commands
@@ -36,11 +36,13 @@ MARKDOWN = re.compile(
     ),
     re.DOTALL | re.MULTILINE,
 )
-MESSAGE_ID_RE = re.compile(r"(?:(?P<channel_or_thread_id>[0-9]{15,20})[-/\s])?(?P<message_id>[0-9]{15,20})$")
+MESSAGE_ID_RE = re.compile(
+    r"(?:(?P<channel_or_thread_id>[0-9]{15,20})[-/\s])?(?P<message_id>[0-9]{15,20})(?:\s\+(?P<range>[1-4]))?$"
+)
 MESSAGE_URL_RE = re.compile(
     r"https?://(?:(canary|ptb|www)\.)?discord(?:app)?\.com/channels/"
     r"(?:(?P<guild_id>[0-9]{15,20})|(?P<dm>@me))/(?P<channel_or_thread_id>[0-9]{15,20})/"
-    r"(?P<message_id>[0-9]{15,20})/?(?:$|\s)"
+    r"(?P<message_id>[0-9]{15,20})/?(?:\s\+(?P<range>[1-4]))?(?:$|\s)"
 )
 
 _MEMBER_MENTION_RE = re.compile(r"<@!?([0-9]{15,20})>$")
@@ -79,8 +81,8 @@ class MessageTuple(NamedTuple):
 class MessageRetrievalContext(commands.Context):
     """Custom command invocation context with methods for message retrieval."""
 
-    async def get_message(self, query: str) -> discord.Message:
-        """Get message from query.
+    async def get_messages(self, query: str) -> AsyncGenerator[discord.Message, None]:
+        """Get message(s) from a query.
 
         The retrieval strategy is as follows (in order):
 
@@ -90,13 +92,14 @@ class MessageRetrievalContext(commands.Context):
             2.1. If the query is formatted as a message URL (which includes a guild ID), retrieve the message from the URL.
             2.2. If only a channel or thread and message ID are provided, retrieve the message from the channel or thread.
             2.3. If no channel or thread ID is provided, check the current channel or thread, then the current guild.
+            2.4. If a range is specified, retrieve the specified number of following messages from the channel.
         3. Check if the query is a valid regex pattern and retrieve the first match in the last 100 messages of the current
            channel or thread.
 
         All lookups are first attempted in the local cache, then a request is made to the API.
 
         Args:
-            query (str): Can be a message ID or URL, a member, or a pattern to search for.
+            query (str): Can be a message ID or URL (with range), a member, or a pattern to search for.
 
         Raises:
             commands.MemberNotFound: If the member is not found.
@@ -117,33 +120,57 @@ class MessageRetrievalContext(commands.Context):
                 pass
             else:
                 try:
-                    return await self._get_last_message_from_author(member.id)
+                    yield await self._get_last_message_from_author(member.id)
                 except commands.MessageNotFound:
                     # If the query is a name, fallback to regex search, otherwise raise
                     if _MEMBER_CONVERTER._get_id_match(query) is not None or _MEMBER_MENTION_RE.match(query) is not None:
                         raise
-                    return await self._regex_search_message(query)
-
+                    yield await self._regex_search_message(query)
+                return
         if (match := MESSAGE_URL_RE.match(query) or MESSAGE_ID_RE.match(query)) is None:
-            return await self._regex_search_message(query)
+            yield await self._regex_search_message(query)
+        else:
+            async for msg in self.get_messages_from_match(match):
+                yield msg
 
-        return await self._get_message_from_match(match)
+    async def get_messages_from_match(self, match: re.Match) -> AsyncGenerator[discord.Message, None]:
+        """Get message(s) from a message ID or URL match.
 
-    async def _get_message_from_match(self, match: re.Match) -> discord.Message:
+        Only yields a single message if no range is matched.
+
+        Args:
+            match (re.Match): Message ID or URL match from `MESSAGE_ID_RE` or `MESSAGE_URL_RE`.
+
+        Raises:
+            commands.MessageNotFound: If the message is not found.
+            commands.ChannelNotFound: If the channel is not found.
+            commands.GuildNotFound: If the guild is not found.
+            discord.Forbidden: If the bot does not have permission to access the message.
+            discord.HTTPException: If the request failed.
+
+        Yields:
+            discord.Message: The matched message and the range of following messages if specified.
+        """
         group_dict = match.groupdict()
         msg_id = int(group_dict["message_id"])
 
-        if group_dict.get("dm"):
-            return await lazy_load_message(self.author, msg_id)
-
-        if channel_or_thread_id_str := group_dict.get("channel_or_thread_id"):
+        if group_dict.get("dm") is not None:
+            msg = await lazy_load_message(self.author, msg_id)
+        elif channel_or_thread_id_str := group_dict.get("channel_or_thread_id"):
             channel_or_thread_id = int(channel_or_thread_id_str)
             if guild_id_str := group_dict.get("guild_id"):
                 guild_id = int(guild_id_str)
             else:
                 guild_id = None
-            return await self.get_channel_or_thread_message(MessageTuple(msg_id, channel_or_thread_id, guild_id))
-        return await self._get_message_from_unknown_channel_or_thread(msg_id)
+            msg = await self.get_channel_or_thread_message(MessageTuple(msg_id, channel_or_thread_id, guild_id))
+        else:
+            msg = await self._get_message_from_unknown_channel_or_thread(msg_id)
+
+        yield msg
+
+        if (msg_range := group_dict["range"]) is not None:
+            async for following_msg in msg.channel.history(limit=int(msg_range), after=msg, oldest_first=True):
+                yield following_msg
 
     def get_message_urls(self) -> Iterator[re.Match[str]]:
         """Get all message URLs from the message, excluding Markdown-formatted and <suppressed> links.

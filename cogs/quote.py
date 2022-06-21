@@ -60,12 +60,12 @@ class Quote(commands.Cog):
             if await con.is_blocked(msg.guild.id) or not await con.fetch_quote_links(msg.guild.id):
                 return
         msg_urls = ctx.get_message_urls()
-        if (msg_url := next(msg_urls, None)) and next(msg_urls, None) is None:
+        if (msg_url_match := next(msg_urls, None)) and next(msg_urls, None) is None:
             # message contains 1 message link
             try:
-                quoted_msg = await ctx.get_message(msg_url.group(0))
-                await ctx.typing()
-                await self.bot.quote_message(quoted_msg, msg.channel, ctx.send, str(msg.author), "link")
+                async for linked_msg in ctx.get_messages_from_match(msg_url_match):
+                    await ctx.typing()
+                    await self.bot.quote_message(linked_msg, msg.channel, ctx.send, str(msg.author), "link")
             except _QUOTE_EXCEPTIONS:
                 pass
 
@@ -96,24 +96,6 @@ class Quote(commands.Cog):
             except _QUOTE_EXCEPTIONS:
                 pass
 
-    async def _send_quote(self, ctx: MessageRetrievalContext, query: Optional[str]) -> None:
-        if query is None:
-            try:
-                async for msg in ctx.channel.history(limit=1, before=ctx.message):
-                    await self.bot.quote_message(msg, ctx.channel, ctx.send, str(ctx.author))
-            except _QUOTE_EXCEPTIONS:
-                await ctx.send(":x: **Couldn't find the message.**")
-        else:
-            try:
-                msg = await ctx.get_message(query)
-                await self.bot.quote_message(msg, ctx.channel, ctx.send, str(ctx.author))
-            except discord.Forbidden:
-                await ctx.send(":x: **I don't have permissions to read messages from that channel.**")
-            except commands.BadArgument:
-                await ctx.send(":x: **Couldn't find the message.**")
-            except commands.UserInputError:
-                await ctx.send(":x: **Please specify a valid message ID/URL or regular expression.**")
-
     async def _send_cloned_messages(
         self, ctx: commands.Context, msg_limit: int, source: Union[discord.TextChannel, discord.Thread]
     ) -> None:
@@ -142,14 +124,47 @@ class Quote(commands.Cog):
         except ignored_exceptions:
             pass
 
+    async def _quote_last_message(self, ctx: commands.Context) -> None:
+        try:
+            msg = getattr(ctx.channel, "last_message", None) or await anext(
+                ctx.channel.history(limit=1, before=ctx.message), None
+            )
+            if msg is not None:
+                await self.bot.quote_message(msg, ctx.channel, ctx.send, str(ctx.author))
+            else:
+                await ctx.send(":x: **No messages found in this channel.**")
+        except _QUOTE_EXCEPTIONS:
+            await ctx.send(":x: **Couldn't find the message.**")
+
     @commands.hybrid_command(aliases=["q"])
     @commands.bot_has_permissions(send_messages=True)
     @app_commands.describe(query="ID, link or regular expression")
     @delete_message_if_needed
     async def quote(self, ctx: MessageRetrievalContext, *, query: Optional[str] = None) -> None:
-        """Quote a message using an ID, link or a regular expression matching the content."""
-        await ctx.typing()
-        await self._send_quote(ctx, query)
+        """
+        Quote messages using an ID, link or a regular expression matching the content.
+
+        If a link or ID is used, up to 4 following messages can be quoted by adding `+<number of messages>` after the query.
+
+        Example:
+        `>quote 12345678901234567 +3`
+
+        This will quote the message with ID 12345678901234567 as well as the 3 following messages.
+        """
+        if query is None:
+            await ctx.typing()
+            await self._quote_last_message(ctx)
+        else:
+            try:
+                async for msg in ctx.get_messages(query):
+                    await ctx.channel.typing()
+                    await self.bot.quote_message(msg, ctx.channel, ctx.send, str(ctx.author))
+            except discord.Forbidden:
+                await ctx.send(":x: **I don't have permissions to read messages from that channel.**")
+            except commands.BadArgument:
+                await ctx.send(":x: **Couldn't find the message.**")
+            except commands.UserInputError:
+                await ctx.send(":x: **Please specify a valid message ID/URL or regular expression.**")
 
     @commands.hybrid_command()
     @commands.has_permissions(manage_guild=True)
