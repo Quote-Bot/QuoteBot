@@ -112,7 +112,7 @@ class SavedQuotes(commands.Cog):
             await ctx.send(f":x: **Alias can't be longer than {_MAX_ALIAS_LENGTH} characters.**")
             return
         try:
-            msg = await ctx.get_message(query)
+            msg = await anext(ctx.get_messages(query))
         except commands.BadArgument:
             await ctx.send(":x: **Couldn't find the message.**")
         except discord.Forbidden:
