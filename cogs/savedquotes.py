@@ -229,7 +229,7 @@ class SavedQuotes(commands.Cog):
                 )
                 for alias in await con.fetch_owner_aliases(interaction.user.id)
                 if current.lower() in alias.lower()
-            ]
+            ][:25]
 
     @commands.hybrid_command(aliases=["server", "squote", "sq"])
     @commands.guild_only()
@@ -277,7 +277,7 @@ class SavedQuotes(commands.Cog):
                     value=alias,
                 )
                 for alias in await con.fetch_owner_aliases(interaction.guild.id)
-            ]
+            ][:25]
 
     @commands.hybrid_command(aliases=["sclear"])
     @commands.has_permissions(manage_messages=True)

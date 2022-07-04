@@ -47,61 +47,41 @@ class OwnerOnly(commands.Cog):
             app_commands.Choice(name=name, value=name.lower())
             for name in self.bot.cogs.keys()
             if current.lower() in name.lower()
-        ]
+        ][:25]
 
     @commands.hybrid_command(aliases=["kick"])
-    async def leave(self, ctx: commands.Context, guild_id: int) -> None:
+    async def leave(self, ctx: commands.Context, guild: discord.Guild) -> None:
         """Make bot leave the specified server (owner only)."""
-        if guild := self.bot.get_guild(guild_id):
+        try:
             await guild.leave()
             await ctx.send(
                 f":white_check_mark: **Left server `{discord.utils.escape_markdown(guild.name)}`.**", ephemeral=True
             )
-        else:
+        except discord.HTTPException:
             await ctx.send(":x: **Server not found.**", ephemeral=True)
 
     @commands.hybrid_command()
-    async def block(self, ctx: commands.Context, guild_id: int) -> None:
+    async def block(self, ctx: commands.Context, guild: discord.Guild) -> None:
         """Block the specified server (owner only)."""
         async with self.bot.db_connect() as con:
-            await con.insert_blocked_id(guild_id)
+            await con.insert_blocked_id(guild.id)
             await con.commit()
         await ctx.send(":white_check_mark: **Server blocked.**", ephemeral=True)
-        if guild := self.bot.get_guild(guild_id):
+        try:
             await guild.leave()
-
-    @leave.autocomplete("guild_id")
-    @block.autocomplete("guild_id")
-    async def _current_guilds_autocomplete(
-        self, interaction: discord.Interaction, current: str
-    ) -> List[app_commands.Choice[int]]:
-        return [
-            app_commands.Choice(name=guild.name, value=guild.id)
-            for guild in self.bot.guilds
-            if current.lower() in guild.name.lower() or current in str(guild.id)
-        ]
+        except discord.HTTPException:
+            pass
 
     @commands.hybrid_command()
-    async def unblock(self, ctx: commands.Context, guild_id: int) -> None:
+    async def unblock(self, ctx: commands.Context, guild: discord.Guild) -> None:
         """Unblock the specified server (owner only)."""
         async with self.bot.db_connect() as con:
-            if not await con.is_blocked(guild_id):
+            if not await con.is_blocked(guild.id):
                 await ctx.send(":x: **Server was not blocked.**", ephemeral=True)
             else:
-                await con.delete_blocked_id(guild_id)
+                await con.delete_blocked_id(guild.id)
                 await con.commit()
                 await ctx.send(":white_check_mark: **Server unblocked.**", ephemeral=True)
-
-    @unblock.autocomplete("guild_id")
-    async def _blocked_guilds_autocomplete(
-        self, interaction: discord.Interaction, current: str
-    ) -> List[app_commands.Choice[int]]:
-        async with self.bot.db_connect() as con:
-            return [
-                app_commands.Choice(name=str(blocked_id), value=blocked_id)
-                for blocked_id in await con.fetch_blocked_ids()
-                if current in str(blocked_id)
-            ]
 
     @commands.hybrid_command()
     async def sync(self, ctx: commands.Context) -> None:

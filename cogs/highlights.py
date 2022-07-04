@@ -141,7 +141,7 @@ class Highlights(commands.Cog):
                     value=pattern,
                 )
                 for pattern in await con.fetch_user_highlights_starting_with(interaction.user.id, current)
-            ]
+            ][:25]
 
     @commands.hybrid_command(aliases=["hlclear"])
     async def highlightclear(self, ctx: commands.Context) -> None:
