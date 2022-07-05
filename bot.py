@@ -258,9 +258,7 @@ class QuoteBot(commands.AutoShardedBot):
         source = self.user if msg.channel.type == discord.ChannelType.private else f"#{msg.channel.name}"
         if destination_guild is not None and msg.guild is not None and msg.guild != destination_guild:
             source = f"{source} ({msg.guild.name})"
-        embed.set_footer(
-            text=f"{self._QUOTE_TYPE_TEXT[quote_type].footer} by @\u200b{quoted_by} from @\u200b{msg.author}{f' in {source}' if source != msg.author else ''}"
-        )
+        embed.set_footer(text=f"{self._QUOTE_TYPE_TEXT[quote_type].footer} by @\u200b{quoted_by} from {source}")
 
     async def on_ready(self) -> None:
         await self._update_presence()
