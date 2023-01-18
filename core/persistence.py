@@ -151,13 +151,13 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
 
     async def fetch_highlights(self, guild_id: int = 0) -> Iterable[sqlite3.Row]:
         if guild_id:
-            return await self.execute_fetchall("SELECT * FROM highlight WHERE guild_id = ?", (guild_id))
+            return await self.execute_fetchall("SELECT * FROM highlight WHERE (guild_id = ? OR guild_id = 0)", (guild_id))
         return await self.execute_fetchall("SELECT * FROM highlight")
 
     async def fetch_user_highlights(self, user_id: int, guild_id: int = 0) -> Tuple[Tuple[str, int], ...]:
         if guild_id:
             rows = await self.execute_fetchall(
-                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND guild_id = ?", (user_id, guild_id)
+                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND (guild_id = ? OR guild_id = 0)", (user_id, guild_id)
             )
         else:
             rows = await self.execute_fetchall("SELECT query, guild_id FROM highlight WHERE user_id = ?", (user_id,))
@@ -171,7 +171,7 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
     ) -> Tuple[Tuple[str, int], ...]:
         if guild_id:
             rows = await self.execute_fetchall(
-                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND guild_id = ? AND query LIKE ?",
+                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND (guild_id = ? OR guild_id = 0) AND query LIKE ?",
                 (user_id, guild_id, f"{prefix}%"),
             )
         else:
