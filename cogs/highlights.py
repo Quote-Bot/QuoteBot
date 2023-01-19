@@ -16,6 +16,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import re
 import sqlite3
+from collections import defaultdict
 from typing import Iterable
 
 import discord
@@ -117,9 +118,7 @@ class Highlights(commands.Cog):
                     global_overwritten = True
             elif guilds := await con.fetch_user_highlight_guilds(user_id, pattern, exclude_global_guild=True):
                 # Warning about server highlights
-                guilds_str = "\n".join(
-                    [f"`{gid} : {ctx.bot.get_guild(gid).name}`" for gid in guilds]
-                )
+                guilds_str = "\n".join([f"`{gid} : {ctx.bot.get_guild(gid).name}`" for gid in guilds])
                 await ctx.send(
                     ":x: **Server highlights with the same pattern found:**\n"
                     f"{guilds_str}\n"
@@ -140,7 +139,7 @@ class Highlights(commands.Cog):
             highlights = await con.fetch_user_highlights(ctx.author.id, self._get_guild_id(server), order_by_guild=True)
         if highlights:
             embed = discord.Embed(
-                description=self._hightlight_table_str(((pattern, guild) for pattern, guild in highlights), ctx),
+                description=self._hightlight_server_list_formatted(highlights, ctx),
                 color=ctx.author.color.value,
             )
             embed.set_author(
@@ -151,15 +150,15 @@ class Highlights(commands.Cog):
         else:
             await ctx.send(f":x: **You don't have any Highlights{self._server_text(server, ' ', '')}.**")
 
-    def _hightlight_table_str(self, highlights: Iterable[tuple[str, int]], ctx: commands.Context) -> str:
-        hl_table = []
-        max_pattern_len = len("pattern")
+    def _hightlight_server_list_formatted(self, highlights: Iterable[tuple[str, int]], ctx: commands.Context) -> str:
+        guild_patterns = defaultdict(list)
         for pattern, gid in highlights:
-            max_pattern_len = max(max_pattern_len, len(pattern))
-            gid = f"{gid} : {ctx.bot.get_guild(gid).name}" if gid else "0"
-            hl_table.append((pattern.replace("`", ""), gid))
-        header = f"*`{'pattern':<{max_pattern_len}}  server`*\n"  # aligned italic header
-        return header + "\n".join(f"`{pattern:<{max_pattern_len}}  {gid}`" for pattern, gid in hl_table)
+            guild_patterns[gid].append(pattern)
+        return "\n".join(
+            (f"**Server** `{ctx.bot.get_guild(gid).name} ({gid})`:\n" if gid else "**Global** `(0)`:\n")
+            + "\n".join(f"> `{p.replace('`', '')}`" for p in pattern)
+            for gid, pattern in guild_patterns.items()
+        )
 
     @commands.hybrid_command(aliases=["hlremove", "hldelete", "hldel"])
     async def highlightremove(
