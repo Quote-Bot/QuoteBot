@@ -144,8 +144,10 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
     async def insert_highlight(self, user_id: int, query: str, guild_id: int = 0) -> None:
         await self.execute("INSERT OR IGNORE INTO highlight VALUES (?, ?, ?)", (user_id, query, guild_id))
 
-    async def fetch_highlight(self, user_id: int, query: str) -> Optional[sqlite3.Row]:
-        return await self.execute_fetchone("SELECT * FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
+    async def fetch_highlight(self, user_id: int, query: str, guild_id: int = 0) -> Optional[sqlite3.Row]:
+        return await self.execute_fetchone(
+            "SELECT * FROM highlight WHERE user_id = ? AND query = ? AND guild_id = ?", (user_id, query, guild_id)
+        )
 
     async def fetch_highlights(self) -> Iterable[sqlite3.Row]:
         return await self.execute_fetchall("SELECT * FROM highlight")
@@ -162,14 +164,27 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
     async def fetch_user_highlight_count(self, user_id: int) -> int:
         return (await self.execute_fetchone("SELECT COUNT(query) FROM highlight WHERE user_id = ?", (user_id,)))[0]  # type: ignore
 
-    async def fetch_user_highlights_starting_with(self, user_id: int, prefix: str) -> Tuple[str, ...]:
-        rows = await self.execute_fetchall(
-            "SELECT query FROM highlight WHERE user_id = ? AND query LIKE ?", (user_id, f"{prefix}%")
-        )
-        return tuple(row[0] for row in rows)
+    async def fetch_user_highlights_starting_with(
+        self, user_id: int, prefix: str, guild_id: int = 0
+    ) -> Tuple[Tuple[str, int], ...]:
+        if guild_id:
+            rows = await self.execute_fetchall(
+                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND guild_id = ? AND query LIKE ?",
+                (user_id, guild_id, f"{prefix}%"),
+            )
+        else:
+            rows = await self.execute_fetchall(
+                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND query LIKE ?", (user_id, f"{prefix}%")
+            )
+        return tuple(tuple(row) for row in rows)
 
-    async def delete_highlight(self, user_id: int, query: str) -> None:
-        await self.execute("DELETE FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
+    async def delete_highlight(self, user_id: int, query: str, guild_id: int = 0) -> None:
+        if guild_id:
+            await self.execute(
+                "DELETE FROM highlight WHERE user_id = ? AND guild_id = ? AND query = ?", (user_id, guild_id, query)
+            )
+        else:
+            await self.execute("DELETE FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
 
     async def clear_user_highlights(self, user_id: int) -> None:
         await self.execute("DELETE FROM highlight WHERE user_id = ?", (user_id,))

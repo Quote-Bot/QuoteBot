@@ -16,7 +16,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import re
 import sqlite3
-from typing import Iterable, List
+from typing import Iterable
 
 import discord
 from discord import app_commands
@@ -142,28 +142,33 @@ class Highlights(commands.Cog):
         return header + "\n".join(f"`{pattern:<{max_pattern_len}}  {gid}`" for pattern, gid in hl_table)
 
     @commands.hybrid_command(aliases=["hlremove", "hldelete", "hldel"])
-    async def highlightremove(self, ctx: commands.Context, *, pattern: str) -> None:
-        """Remove a Highlight."""
+    async def highlightremove(
+        self, ctx: commands.Context, pattern: str, server: discord.Guild | None = OptionalCurrentGuild
+    ) -> None:
+        """Remove a Highlight from the server (0 = from all servers)."""
+        guild_id = self._get_guild_id(server)
         async with self.bot.db_connect() as con:
-            if await con.fetch_highlight(user_id := ctx.author.id, pattern):
-                await con.delete_highlight(user_id, pattern)
-            elif len(matches := await con.fetch_user_highlights_starting_with(user_id, pattern)) == 1:
-                await con.delete_highlight(user_id, pattern := matches[0][0])
+            if await con.fetch_highlight(user_id := ctx.author.id, pattern, guild_id):
+                await con.delete_highlight(user_id, pattern, guild_id)
+            elif len(matches := await con.fetch_user_highlights_starting_with(user_id, pattern, guild_id)) == 1:
+                await con.delete_highlight(user_id, pattern := matches[0][0], guild_id)
             else:
                 await ctx.send(":x: **Highlight not found.**")
                 return
             await con.commit()
-        await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` removed.**")
+        await ctx.send(
+            f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` removed {self._server_text(server)}.**"
+        )
 
     @highlightremove.autocomplete("pattern")
-    async def _pattern_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    async def _pattern_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         async with self.bot.db_connect() as con:
             return [
                 app_commands.Choice(
                     name=pattern,
                     value=pattern,
                 )
-                for pattern in await con.fetch_user_highlights_starting_with(interaction.user.id, current)
+                for pattern, _ in await con.fetch_user_highlights_starting_with(interaction.user.id, current)
             ][:25]
 
     @commands.hybrid_command(aliases=["hlclear"])
