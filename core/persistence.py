@@ -246,7 +246,8 @@ class QuoteBotDatabaseConnection(
             IF NOT EXISTS highlight (
                 user_id INTEGER NOT NULL,
                 query TEXT NOT NULL,
-                PRIMARY KEY (user_id, query)
+                guild_id INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, query, guild_id)
             );
             CREATE TABLE
             IF NOT EXISTS blocked (
@@ -259,6 +260,14 @@ class QuoteBotDatabaseConnection(
             BEGIN
                 DELETE FROM saved_quote
                 WHERE owner_id = old.guild_id;
+            END;
+
+            CREATE TRIGGER
+            IF NOT EXISTS delete_guild_highlights
+                AFTER DELETE ON guild
+            BEGIN
+                DELETE FROM highlight
+                WHERE guild_id = old.guild_id;
             END;
         """
         )
