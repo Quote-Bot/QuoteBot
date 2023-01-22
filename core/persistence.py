@@ -141,8 +141,8 @@ class BlockedConnectionMixin(AsyncDatabaseConnection):
 
 
 class HighlightConnectionMixin(AsyncDatabaseConnection):
-    async def insert_highlight(self, user_id: int, query: str) -> None:
-        await self.execute("INSERT OR IGNORE INTO highlight VALUES (?, ?)", (user_id, query))
+    async def insert_highlight(self, user_id: int, query: str, guild_id: int = 0) -> None:
+        await self.execute("INSERT OR IGNORE INTO highlight VALUES (?, ?, ?)", (user_id, query, guild_id))
 
     async def fetch_highlight(self, user_id: int, query: str) -> Optional[sqlite3.Row]:
         return await self.execute_fetchone("SELECT * FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))

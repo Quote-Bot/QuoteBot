@@ -69,10 +69,20 @@ class Highlights(commands.Cog):
                     continue
         await con.commit()
 
+    def _get_guild_id(self, server: discord.Guild | None) -> int:
+        return server.id if server else 0
+
+    def _server_text(self, server, pre="", no_server="globally"):
+        return f"{pre}for server `{server.name} ({server.id})`" if server else no_server
+
     @commands.hybrid_command(aliases=["hl", "hladd"])
-    async def highlight(self, ctx: commands.Context, *, pattern: str) -> None:
+    async def highlight(
+        self, ctx: commands.Context, pattern: str, server: discord.Guild | None = OptionalCurrentGuild
+    ) -> None:
         """
         Highlight mutual server messages matching a regex pattern of up to 50 characters to your DMs.
+
+        server: id or name for a server specific highlight, 0 for global. Default: current server / 0 on DM.
 
         Requires allowing direct messages from server members in your 'Privacy & Safety' settings.
         """
@@ -97,9 +107,9 @@ class Highlights(commands.Cog):
             if await con.fetch_user_highlight_count(user_id := ctx.author.id) >= 10:
                 await ctx.send(":x: **Highlight limit exceeded.**")
                 return
-            await con.insert_highlight(user_id, pattern)
+            await con.insert_highlight(user_id, pattern, self._get_guild_id(server))
             await con.commit()
-        await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` added.**")
+        await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` added {self._server_text(server)}.**")
 
     @commands.hybrid_command(aliases=["highlights", "hllist"])
     async def highlightlist(self, ctx: commands.Context) -> None:
