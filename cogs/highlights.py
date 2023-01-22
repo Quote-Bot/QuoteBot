@@ -54,10 +54,12 @@ class Highlights(commands.Cog):
         self, con: QuoteBotDatabaseConnection, msg: discord.Message, highlights: Iterable[sqlite3.Row]
     ) -> None:
         seen_user_ids = set()
-        for user_id, query in highlights:
+        for user_id, query, guild_id in highlights:
             if not self.bot.get_user(user_id):
                 await con.clear_user_highlights(user_id)
             elif not (member := msg.guild.get_member(user_id)):
+                continue
+            elif guild_id > 0 and guild_id != msg.guild.id:
                 continue
             elif user_id not in seen_user_ids and _should_send_highlight(msg, member, query):
                 seen_user_ids.add(user_id)
