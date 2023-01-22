@@ -38,6 +38,8 @@ def _should_send_highlight(msg: discord.Message, member: discord.Member, query: 
         and msg.channel.permissions_for(member).read_messages
     )
 
+def _for_guild_str(guild: discord.Guild) -> str:
+    return f"for server `{guild.name} ({guild.id})`"
 
 class Highlights(commands.Cog):
     def __init__(self, bot: QuoteBot) -> None:
@@ -72,12 +74,6 @@ class Highlights(commands.Cog):
                     continue
         await con.commit()
 
-    def _get_guild_id(self, server: discord.Guild | None) -> int:
-        return server.id if server else 0
-
-    def _server_text(self, server, pre="", no_server="globally"):
-        return f"{pre}for server `{server.name} ({server.id})`" if server else no_server
-
     @commands.hybrid_command(aliases=["hl", "hladd"])
     async def highlight(
         self, ctx: commands.Context, pattern: str, server: discord.Guild | None = OptionalCurrentGuild
@@ -109,7 +105,7 @@ class Highlights(commands.Cog):
         async with self.bot.db_connect() as con:
             if await con.fetch_user_highlight_count(user_id := ctx.author.id) >= 10:
                 await ctx.send(":x: **Highlight limit exceeded.**")
-            guild_id = self._get_guild_id(server)
+            guild_id = server.id if server else 0
             global_overwritten = False
             if guild_id:
                 # Remove global highlight
@@ -118,7 +114,7 @@ class Highlights(commands.Cog):
                     global_overwritten = True
             elif guilds := await con.fetch_user_highlight_guilds(user_id, pattern, exclude_global_guild=True):
                 # Warning about server highlights
-                guilds_str = "\n".join([f"`{gid} : {ctx.bot.get_guild(gid).name}`" for gid in guilds])
+                guilds_str = "\n".join([f"`{gid} : {ctx.bot.get_guild(server.id if server else 0).name}`" for gid in guilds])
                 await ctx.send(
                     ":x: **Server highlights with the same pattern found:**\n"
                     f"{guilds_str}\n"
@@ -129,14 +125,15 @@ class Highlights(commands.Cog):
             await con.commit()
         await ctx.send(
             f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` added"
-            f" {self._server_text(server)}.{' Global pattern overwritten!' if global_overwritten else ''}**"
+            f" {_for_guild_str(server) if server else 'globally'}."
+            f"{' Global pattern overwritten!' if global_overwritten else ''}**"
         )
 
     @commands.hybrid_command(aliases=["highlights", "hllist"])
     async def highlightlist(self, ctx: commands.Context, server: discord.Guild | None = OptionalCurrentGuild) -> None:
         """List your Highlights on the server (0 = all)."""
         async with self.bot.db_connect() as con:
-            highlights = await con.fetch_user_highlights(ctx.author.id, self._get_guild_id(server), order_by_guild=True)
+            highlights = await con.fetch_user_highlights(ctx.author.id, server.id if server else 0, order_by_guild=True)
         if highlights:
             embed = discord.Embed(
                 description=self._hightlight_server_list_formatted(highlights, ctx),
@@ -148,16 +145,16 @@ class Highlights(commands.Cog):
             )
             await ctx.send(embed=embed)
         else:
-            await ctx.send(f":x: **You don't have any Highlights{self._server_text(server, ' ', '')}.**")
+            await ctx.send(f":x: **You don't have any Highlights{' for server `{guild.name} ({guild.id})`' if server else ''}.**")
 
     def _hightlight_server_list_formatted(self, highlights: Iterable[tuple[str, int]], ctx: commands.Context) -> str:
         guild_patterns = defaultdict(list)
-        for pattern, gid in highlights:
-            guild_patterns[gid].append(pattern)
+        for pattern, guild_id in highlights:
+            guild_patterns[guild_id].append(pattern)
         return "\n".join(
-            (f"**Server** `{ctx.bot.get_guild(gid).name} ({gid})`:\n" if gid else "**Global** `(0)`:\n")
+            (f"**Server** `{ctx.bot.get_guild(guild_id).name} ({guild_id})`:\n" if guild_id else "**Global** `(0)`:\n")
             + "\n".join(f"> `{p.replace('`', '')}`" for p in pattern)
-            for gid, pattern in guild_patterns.items()
+            for guild_id, pattern in guild_patterns.items()
         )
 
     @commands.hybrid_command(aliases=["hlremove", "hldelete", "hldel"])
@@ -165,7 +162,7 @@ class Highlights(commands.Cog):
         self, ctx: commands.Context, pattern: str, server: discord.Guild | None = OptionalCurrentGuild
     ) -> None:
         """Remove a Highlight from the server (0 = from all servers)."""
-        guild_id = self._get_guild_id(server)
+        guild_id = server.id if server else 0
         async with self.bot.db_connect() as con:
             if await con.fetch_highlight(user_id := ctx.author.id, pattern, guild_id or None):
                 await con.delete_highlight(user_id, pattern, guild_id)
@@ -176,7 +173,8 @@ class Highlights(commands.Cog):
                 return
             await con.commit()
         await ctx.send(
-            f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` removed {self._server_text(server)}.**"
+            f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` removed"
+            f" {_for_guild_str(server) if server else 'globally'}.**"
         )
 
     @highlightremove.autocomplete("pattern")
@@ -194,9 +192,11 @@ class Highlights(commands.Cog):
     async def highlightclear(self, ctx: commands.Context, server: discord.Guild | None = OptionalCurrentGuild) -> None:
         """Clear all your Highlights on the server (0 = all)."""
         async with self.bot.db_connect() as con:
-            await con.clear_user_highlights(ctx.author.id, self._get_guild_id(server))
+            await con.clear_user_highlights(ctx.author.id, server.id if server else 0)
             await con.commit()
-        await ctx.send(f":white_check_mark: **Cleared all your Highlights{self._server_text(server, ' ', '')}.**")
+        await ctx.send(
+            f":white_check_mark: **Cleared all your Highlights{f' {_for_guild_str(server)}' if server else ''}.**"
+        )
 
 
 async def setup(bot: QuoteBot) -> None:
