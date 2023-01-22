@@ -145,24 +145,45 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
     async def insert_highlight(self, user_id: int, query: str, guild_id: int = 0) -> None:
         await self.execute("INSERT OR IGNORE INTO highlight VALUES (?, ?, ?)", (user_id, query, guild_id))
 
-    async def fetch_highlight(self, user_id: int, query: str, guild_id: int = 0) -> sqlite3.Row | None:
+    async def fetch_highlight(self, user_id: int, query: str, guild_id: int | None = None) -> sqlite3.Row | None:
+        if guild_id is None:
+            return await self.execute_fetchone("SELECT * FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
         return await self.execute_fetchone(
             "SELECT * FROM highlight WHERE user_id = ? AND query = ? AND guild_id = ?", (user_id, query, guild_id)
         )
 
-    async def fetch_highlights(self, guild_id: int = 0) -> Iterable[sqlite3.Row]:
-        if guild_id:
-            return await self.execute_fetchall("SELECT * FROM highlight WHERE (guild_id = ? OR guild_id = 0)", (guild_id))
+    async def fetch_highlights(self) -> Iterable[sqlite3.Row]:
         return await self.execute_fetchall("SELECT * FROM highlight")
 
-    async def fetch_user_highlights(self, user_id: int, guild_id: int = 0) -> tuple[tuple[str, int], ...]:
-        if guild_id:
-            rows = await self.execute_fetchall(
-                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND (guild_id = ? OR guild_id = 0)", (user_id, guild_id)
+    async def fetch_user_highlights(
+        self, user_id: int, guild_id: int = 0, order_by_guild=False
+    ) -> tuple[tuple[str, int], ...]:
+        """All relevant guilds included:
+            `guild_id = 0` includes all guilds,
+            `guild_id != 0` includes the global guilds (0).
+        """
+        return tuple(
+            (row["query"], row["guild_id"])
+            for row in await self.execute_fetchall(
+                (
+                    f"SELECT query, guild_id FROM highlight WHERE user_id = ? {'AND guild_id IN (?, 0)' if guild_id else ''}"
+                    f"{' ORDER BY guild_id' if order_by_guild else ''}"
+                ),
+                (user_id, guild_id) if guild_id else (user_id,),
             )
-        else:
-            rows = await self.execute_fetchall("SELECT query, guild_id FROM highlight WHERE user_id = ?", (user_id,))
-        return tuple(tuple(row) for row in rows)
+        )
+
+    async def fetch_user_highlight_guilds(self, user_id: int, pattern: str, exclude_global_guild=False) -> tuple[int]:
+        return tuple(
+            row["guild_id"]
+            for row in await self.execute_fetchall(
+                (
+                    "SELECT guild_id FROM highlight WHERE user_id = ? AND query = ?"
+                    f"{' AND guild_id != 0' if exclude_global_guild else ''}"
+                ),
+                (user_id, pattern),
+            )
+        )
 
     async def fetch_user_highlight_count(self, user_id: int) -> int:
         return (await self.execute_fetchone("SELECT COUNT(query) FROM highlight WHERE user_id = ?", (user_id,)))[0]  # type: ignore

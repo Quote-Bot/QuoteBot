@@ -108,19 +108,39 @@ class Highlights(commands.Cog):
         async with self.bot.db_connect() as con:
             if await con.fetch_user_highlight_count(user_id := ctx.author.id) >= 10:
                 await ctx.send(":x: **Highlight limit exceeded.**")
+            guild_id = self._get_guild_id(server)
+            global_overwritten = False
+            if guild_id:
+                # Remove global highlight
+                if await con.fetch_highlight(user_id, pattern, 0):
+                    await con.delete_highlight(user_id, pattern, 0)
+                    global_overwritten = True
+            elif guilds := await con.fetch_user_highlight_guilds(user_id, pattern, exclude_global_guild=True):
+                # Warning about server highlights
+                guilds_str = "\n".join(
+                    [f"`{gid} : {ctx.bot.get_guild(gid).name}`" for gid in guilds]
+                )
+                await ctx.send(
+                    ":x: **Server highlights with the same pattern found:**\n"
+                    f"{guilds_str}\n"
+                    "**Remove them with `highlightremove <pattern> 0` before adding a global highlight.**"
+                )
                 return
-            await con.insert_highlight(user_id, pattern, self._get_guild_id(server))
+            await con.insert_highlight(user_id, pattern, guild_id)
             await con.commit()
-        await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` added {self._server_text(server)}.**")
+        await ctx.send(
+            f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` added"
+            f" {self._server_text(server)}.{' Global pattern overwritten!' if global_overwritten else ''}**"
+        )
 
     @commands.hybrid_command(aliases=["highlights", "hllist"])
     async def highlightlist(self, ctx: commands.Context, server: discord.Guild | None = OptionalCurrentGuild) -> None:
         """List your Highlights on the server (0 = all)."""
         async with self.bot.db_connect() as con:
-            highlights = await con.fetch_user_highlights(ctx.author.id, self._get_guild_id(server))
+            highlights = await con.fetch_user_highlights(ctx.author.id, self._get_guild_id(server), order_by_guild=True)
         if highlights:
             embed = discord.Embed(
-                description=self._hightlight_table_str(highlights, ctx),
+                description=self._hightlight_table_str(((pattern, guild) for pattern, guild in highlights), ctx),
                 color=ctx.author.color.value,
             )
             embed.set_author(
@@ -148,7 +168,7 @@ class Highlights(commands.Cog):
         """Remove a Highlight from the server (0 = from all servers)."""
         guild_id = self._get_guild_id(server)
         async with self.bot.db_connect() as con:
-            if await con.fetch_highlight(user_id := ctx.author.id, pattern, guild_id):
+            if await con.fetch_highlight(user_id := ctx.author.id, pattern, guild_id or None):
                 await con.delete_highlight(user_id, pattern, guild_id)
             elif len(matches := await con.fetch_user_highlights_starting_with(user_id, pattern, guild_id)) == 1:
                 await con.delete_highlight(user_id, pattern := matches[0][0], guild_id)
