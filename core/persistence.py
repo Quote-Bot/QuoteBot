@@ -150,9 +150,14 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
     async def fetch_highlights(self) -> Iterable[sqlite3.Row]:
         return await self.execute_fetchall("SELECT * FROM highlight")
 
-    async def fetch_user_highlights(self, user_id: int) -> Tuple[str, ...]:
-        rows = await self.execute_fetchall("SELECT query FROM highlight WHERE user_id = ?", (user_id,))
-        return tuple(row[0] for row in rows)
+    async def fetch_user_highlights(self, user_id: int, guild_id: int = 0) -> Tuple[Tuple[str, int], ...]:
+        if guild_id:
+            rows = await self.execute_fetchall(
+                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND guild_id = ?", (user_id, guild_id)
+            )
+        else:
+            rows = await self.execute_fetchall("SELECT query, guild_id FROM highlight WHERE user_id = ?", (user_id,))
+        return tuple(tuple(row) for row in rows)
 
     async def fetch_user_highlight_count(self, user_id: int) -> int:
         return (await self.execute_fetchone("SELECT COUNT(query) FROM highlight WHERE user_id = ?", (user_id,)))[0]  # type: ignore

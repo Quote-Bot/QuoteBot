@@ -114,13 +114,13 @@ class Highlights(commands.Cog):
         await ctx.send(f":white_check_mark: **Highlight pattern `{pattern.replace('`', '')}` added {self._server_text(server)}.**")
 
     @commands.hybrid_command(aliases=["highlights", "hllist"])
-    async def highlightlist(self, ctx: commands.Context) -> None:
-        """List your Highlights."""
+    async def highlightlist(self, ctx: commands.Context, server: discord.Guild | None = OptionalCurrentGuild) -> None:
+        """List your Highlights on the server (0 = all)."""
         async with self.bot.db_connect() as con:
-            highlights = await con.fetch_user_highlights(ctx.author.id)
+            highlights = await con.fetch_user_highlights(ctx.author.id, self._get_guild_id(server))
         if highlights:
             embed = discord.Embed(
-                description="\n".join(f"`{highlight.replace('`', '')}`" for highlight in highlights),
+                description=self._hightlight_table_str(highlights, ctx),
                 color=ctx.author.color.value,
             )
             embed.set_author(
@@ -129,7 +129,17 @@ class Highlights(commands.Cog):
             )
             await ctx.send(embed=embed)
         else:
-            await ctx.send(":x: **You don't have any Highlights.**")
+            await ctx.send(f":x: **You don't have any Highlights{self._server_text(server, ' ', '')}.**")
+
+    def _hightlight_table_str(self, highlights: Iterable[tuple[str, int]], ctx: commands.Context) -> str:
+        hl_table = []
+        max_pattern_len = len("pattern")
+        for pattern, gid in highlights:
+            max_pattern_len = max(max_pattern_len, len(pattern))
+            gid = f"{gid} : {ctx.bot.get_guild(gid).name}" if gid else "0"
+            hl_table.append((pattern.replace("`", ""), gid))
+        header = f"*`{'pattern':<{max_pattern_len}}  server`*\n"  # aligned italic header
+        return header + "\n".join(f"`{pattern:<{max_pattern_len}}  {gid}`" for pattern, gid in hl_table)
 
     @commands.hybrid_command(aliases=["hlremove", "hldelete", "hldel"])
     async def highlightremove(self, ctx: commands.Context, *, pattern: str) -> None:
