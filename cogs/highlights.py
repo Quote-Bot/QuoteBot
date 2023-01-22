@@ -172,12 +172,12 @@ class Highlights(commands.Cog):
             ][:25]
 
     @commands.hybrid_command(aliases=["hlclear"])
-    async def highlightclear(self, ctx: commands.Context) -> None:
-        """Clear all your Highlights."""
+    async def highlightclear(self, ctx: commands.Context, server: discord.Guild | None = OptionalCurrentGuild) -> None:
+        """Clear all your Highlights on the server (0 = all)."""
         async with self.bot.db_connect() as con:
-            await con.clear_user_highlights(ctx.author.id)
+            await con.clear_user_highlights(ctx.author.id, self._get_guild_id(server))
             await con.commit()
-        await ctx.send(":white_check_mark: **Cleared all your Highlights.**")
+        await ctx.send(f":white_check_mark: **Cleared all your Highlights{self._server_text(server, ' ', '')}.**")
 
 
 async def setup(bot: QuoteBot) -> None:
