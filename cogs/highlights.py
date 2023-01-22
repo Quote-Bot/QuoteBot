@@ -23,6 +23,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from bot import QuoteBot
+from core.converters import OptionalCurrentGuild
 from core.message_retrieval import DEFAULT_AVATAR_URL
 from core.persistence import QuoteBotDatabaseConnection
 
