@@ -62,7 +62,7 @@ class Highlights(commands.Cog):
                 await con.clear_user_highlights(user_id)
             elif not (member := msg.guild.get_member(user_id)):
                 continue
-            elif guild_id > 0 and guild_id != msg.guild.id:
+            elif guild_id != 0 and guild_id != msg.guild.id:
                 continue
             elif user_id not in seen_user_ids and _should_send_highlight(msg, member, query):
                 seen_user_ids.add(user_id)
