@@ -107,7 +107,7 @@ class Highlights(commands.Cog):
                 await ctx.send(":x: **Highlight limit exceeded.**")
             guild_id = server.id if server else 0
             global_overwritten = False
-            if guild_id:
+            if guild_id != 0:
                 # Remove global highlight
                 if await con.fetch_highlight(user_id, pattern, 0):
                     await con.delete_highlight(user_id, pattern, 0)
