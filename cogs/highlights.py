@@ -114,7 +114,7 @@ class Highlights(commands.Cog):
                     global_overwritten = True
             elif guilds := await con.fetch_user_highlight_guilds(user_id, pattern, exclude_global_guild=True):
                 # Warning about server highlights
-                guilds_str = "\n".join([f"`{gid} : {ctx.bot.get_guild(server.id if server else 0).name}`" for gid in guilds])
+                guilds_str = "\n".join([f"`{guild_id} : {ctx.bot.get_guild(server.id if server else 0).name}`" for guild_id in guilds])
                 await ctx.send(
                     ":x: **Server highlights with the same pattern found:**\n"
                     f"{guilds_str}\n"
