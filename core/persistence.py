@@ -211,7 +211,7 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
             await self.execute("DELETE FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
 
     async def clear_user_highlights(self, user_id: int, guild_id: int = 0) -> None:
-        if guild_id:
+        if guild_id != 0:
             await self.execute("DELETE FROM highlight WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
         else:
             await self.execute("DELETE FROM highlight WHERE user_id = ?", (user_id,))
