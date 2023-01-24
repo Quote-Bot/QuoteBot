@@ -159,8 +159,8 @@ class HighlightConnectionMixin(AsyncDatabaseConnection):
         self, user_id: int, guild_id: int = 0, order_by_guild=False
     ) -> tuple[tuple[str, int], ...]:
         """All relevant guilds included:
-            `guild_id = 0` includes all guilds,
-            `guild_id != 0` includes the global guilds (0).
+        `guild_id = 0` includes all guilds,
+        `guild_id != 0` includes the global guilds (0).
         """
         return tuple(
             (row["query"], row["guild_id"])

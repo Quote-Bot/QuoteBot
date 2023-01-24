@@ -68,6 +68,7 @@ class GlobalTextChannelOrThreadConverter(commands.IDConverter[TextChannelOrThrea
 
 class OptionalGuildConverter(commands.converter.GuildConverter):
     """A :class:`commands.converter.GuildConverter` returning no guild (None) with "0" or "global" as guild-id input."""
+
     async def convert(self, ctx: commands.Context, argument: str) -> discord.Guild | None:
         if argument.lower() in ("0", "global"):
             return None

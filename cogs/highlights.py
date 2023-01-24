@@ -38,8 +38,10 @@ def _should_send_highlight(msg: discord.Message, member: discord.Member, query: 
         and msg.channel.permissions_for(member).read_messages
     )
 
+
 def _for_guild_str(guild: discord.Guild) -> str:
     return f"for server `{guild.name} ({guild.id})`"
+
 
 class Highlights(commands.Cog):
     def __init__(self, bot: QuoteBot) -> None:
@@ -114,7 +116,9 @@ class Highlights(commands.Cog):
                     global_overwritten = True
             elif guilds := await con.fetch_user_highlight_guilds(user_id, pattern, exclude_global_guild=True):
                 # Warning about server highlights
-                guilds_str = "\n".join([f"`{guild_id} : {ctx.bot.get_guild(server.id if server else 0).name}`" for guild_id in guilds])
+                guilds_str = "\n".join(
+                    [f"`{guild_id} : {ctx.bot.get_guild(server.id if server else 0).name}`" for guild_id in guilds]
+                )
                 await ctx.send(
                     ":x: **Server highlights with the same pattern found:**\n"
                     f"{guilds_str}\n"
@@ -145,7 +149,9 @@ class Highlights(commands.Cog):
             )
             await ctx.send(embed=embed)
         else:
-            await ctx.send(f":x: **You don't have any Highlights{' for server `{guild.name} ({guild.id})`' if server else ''}.**")
+            await ctx.send(
+                f":x: **You don't have any Highlights{' for server `{guild.name} ({guild.id})`' if server else ''}.**"
+            )
 
     def _hightlight_server_list_formatted(self, highlights: Iterable[tuple[str, int]], ctx: commands.Context) -> str:
         guild_patterns = defaultdict(list)
