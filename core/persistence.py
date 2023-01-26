@@ -15,8 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import sqlite3
+from collections.abc import Iterable
 from os import PathLike
-from typing import Any, Iterable, Optional, Tuple, Union
+from typing import Any
 
 from aiosqlite import Connection
 from aiosqlite.context import contextmanager
@@ -30,7 +31,7 @@ class AsyncDatabaseConnection(Connection):
         await self.execute("PRAGMA foreign_keys = ON")
 
     @contextmanager
-    async def execute_fetchone(self, sql: str, parameters: Optional[Iterable[Any]] = None) -> Optional[sqlite3.Row]:
+    async def execute_fetchone(self, sql: str, parameters: Iterable[Any] | None = None) -> sqlite3.Row | None:
         if parameters is None:
             parameters = []
         cursor = await self.execute(sql, parameters)
@@ -44,24 +45,24 @@ class GuildConnectionMixin(AsyncDatabaseConnection):
             (guild_id, prefix),
         )
 
-    async def fetch_prefix(self, guild_id: int) -> Optional[str]:
+    async def fetch_prefix(self, guild_id: int) -> str | None:
         if row := await self.execute_fetchone("SELECT prefix FROM guild WHERE guild_id = ?", (guild_id,)):
             return row[0]
         return None
 
-    async def fetch_quote_reactions(self, guild_id: int) -> Optional[bool]:
+    async def fetch_quote_reactions(self, guild_id: int) -> bool | None:
         if row := await self.execute_fetchone("SELECT quote_reactions FROM guild WHERE guild_id = ?", (guild_id,)):
             return bool(row[0])
 
-    async def fetch_quote_links(self, guild_id: int) -> Optional[bool]:
+    async def fetch_quote_links(self, guild_id: int) -> bool | None:
         if row := await self.execute_fetchone("SELECT quote_links FROM guild WHERE guild_id = ?", (guild_id,)):
             return bool(row[0])
 
-    async def fetch_delete_commands(self, guild_id: int) -> Optional[bool]:
+    async def fetch_delete_commands(self, guild_id: int) -> bool | None:
         if row := await self.execute_fetchone("SELECT delete_commands FROM guild WHERE guild_id = ?", (guild_id,)):
             return bool(row[0])
 
-    async def fetch_snipe_requires_manage_messages(self, guild_id: int) -> Optional[bool]:
+    async def fetch_snipe_requires_manage_messages(self, guild_id: int) -> bool | None:
         if row := await self.execute_fetchone(
             "SELECT snipe_requires_manage_messages FROM guild WHERE guild_id = ?", (guild_id,)
         ):
@@ -109,10 +110,10 @@ class MessageConnectionMixin(AsyncDatabaseConnection):
     async def delete_channel_or_thread(self, channel_or_thread_id: int) -> None:
         await self.execute("DELETE FROM channel WHERE channel_id = ?", (channel_or_thread_id,))
 
-    async def insert_message(self, msg_id: int, channel_id: Optional[int]) -> None:
+    async def insert_message(self, msg_id: int, channel_id: int | None) -> None:
         await self.execute("INSERT OR IGNORE INTO message VALUES (?, ?)", (msg_id, channel_id))
 
-    async def fetch_message_channel_or_thread(self, message_id: int) -> Optional[sqlite3.Row]:
+    async def fetch_message_channel_or_thread(self, message_id: int) -> sqlite3.Row | None:
         if row := await self.execute_fetchone(
             """SELECT c.*
             FROM message m, channel c
@@ -141,47 +142,93 @@ class BlockedConnectionMixin(AsyncDatabaseConnection):
 
 
 class HighlightConnectionMixin(AsyncDatabaseConnection):
-    async def insert_highlight(self, user_id: int, query: str) -> None:
-        await self.execute("INSERT OR IGNORE INTO highlight VALUES (?, ?)", (user_id, query))
+    async def insert_highlight(self, user_id: int, query: str, guild_id: int = 0) -> None:
+        await self.execute("INSERT OR IGNORE INTO highlight VALUES (?, ?, ?)", (user_id, query, guild_id))
 
-    async def fetch_highlight(self, user_id: int, query: str) -> Optional[sqlite3.Row]:
-        return await self.execute_fetchone("SELECT * FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
+    async def fetch_highlight(self, user_id: int, query: str, guild_id: int | None = None) -> sqlite3.Row | None:
+        if guild_id is None:
+            return await self.execute_fetchone("SELECT * FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
+        return await self.execute_fetchone(
+            "SELECT * FROM highlight WHERE user_id = ? AND query = ? AND guild_id = ?", (user_id, query, guild_id)
+        )
 
     async def fetch_highlights(self) -> Iterable[sqlite3.Row]:
         return await self.execute_fetchall("SELECT * FROM highlight")
 
-    async def fetch_user_highlights(self, user_id: int) -> Tuple[str, ...]:
-        rows = await self.execute_fetchall("SELECT query FROM highlight WHERE user_id = ?", (user_id,))
-        return tuple(row[0] for row in rows)
+    async def fetch_user_highlights(
+        self, user_id: int, guild_id: int = 0, order_by_guild=False
+    ) -> tuple[tuple[str, int], ...]:
+        """All relevant guilds included:
+        `guild_id = 0` includes all guilds,
+        `guild_id != 0` includes the global guilds (0).
+        """
+        return tuple(
+            (row["query"], row["guild_id"])
+            for row in await self.execute_fetchall(
+                (
+                    f"SELECT query, guild_id FROM highlight WHERE user_id = ? {'AND guild_id IN (?, 0)' if guild_id else ''}"
+                    f"{' ORDER BY guild_id' if order_by_guild else ''}"
+                ),
+                (user_id, guild_id) if guild_id else (user_id,),
+            )
+        )
+
+    async def fetch_user_highlight_guilds(self, user_id: int, pattern: str, exclude_global_guild=False) -> tuple[int]:
+        return tuple(
+            row["guild_id"]
+            for row in await self.execute_fetchall(
+                (
+                    "SELECT guild_id FROM highlight WHERE user_id = ? AND query = ?"
+                    f"{' AND guild_id != 0' if exclude_global_guild else ''}"
+                ),
+                (user_id, pattern),
+            )
+        )
 
     async def fetch_user_highlight_count(self, user_id: int) -> int:
         return (await self.execute_fetchone("SELECT COUNT(query) FROM highlight WHERE user_id = ?", (user_id,)))[0]  # type: ignore
 
-    async def fetch_user_highlights_starting_with(self, user_id: int, prefix: str) -> Tuple[str, ...]:
-        rows = await self.execute_fetchall(
-            "SELECT query FROM highlight WHERE user_id = ? AND query LIKE ?", (user_id, f"{prefix}%")
-        )
-        return tuple(row[0] for row in rows)
+    async def fetch_user_highlights_starting_with(
+        self, user_id: int, prefix: str, guild_id: int = 0
+    ) -> tuple[tuple[str, int], ...]:
+        if guild_id != 0:
+            rows = await self.execute_fetchall(
+                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND (guild_id = ? OR guild_id = 0) AND query LIKE ?",
+                (user_id, guild_id, f"{prefix}%"),
+            )
+        else:
+            rows = await self.execute_fetchall(
+                "SELECT query, guild_id FROM highlight WHERE user_id = ? AND query LIKE ?", (user_id, f"{prefix}%")
+            )
+        return tuple(tuple(row) for row in rows)
 
-    async def delete_highlight(self, user_id: int, query: str) -> None:
-        await self.execute("DELETE FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
+    async def delete_highlight(self, user_id: int, query: str, guild_id: int = 0) -> None:
+        if guild_id:
+            await self.execute(
+                "DELETE FROM highlight WHERE user_id = ? AND guild_id = ? AND query = ?", (user_id, guild_id, query)
+            )
+        else:
+            await self.execute("DELETE FROM highlight WHERE user_id = ? AND query = ?", (user_id, query))
 
-    async def clear_user_highlights(self, user_id: int) -> None:
-        await self.execute("DELETE FROM highlight WHERE user_id = ?", (user_id,))
+    async def clear_user_highlights(self, user_id: int, guild_id: int = 0) -> None:
+        if guild_id != 0:
+            await self.execute("DELETE FROM highlight WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+        else:
+            await self.execute("DELETE FROM highlight WHERE user_id = ?", (user_id,))
 
 
 class SavedQuoteConnectionMixin(AsyncDatabaseConnection):
     async def set_saved_quote(self, owner_id: int, alias: str, msg_id: int) -> None:
         await self.execute("INSERT OR REPLACE INTO saved_quote VALUES (?, ?, ?)", (owner_id, alias, msg_id))
 
-    async def fetch_saved_quote(self, owner_id: int, alias: str) -> Optional[sqlite3.Row]:
+    async def fetch_saved_quote(self, owner_id: int, alias: str) -> sqlite3.Row | None:
         return await self.execute_fetchone("SELECT * FROM saved_quote WHERE owner_id = ? AND alias = ?", (owner_id, alias))
 
     async def fetch_owner_aliases(self, owner_id: int) -> Iterable[str]:
         rows = await self.execute_fetchall("SELECT alias FROM saved_quote WHERE owner_id = ?", (owner_id,))
         return (row[0] for row in rows)
 
-    async def fetch_saved_quote_message_id(self, owner_id: int, alias: int) -> Optional[int]:
+    async def fetch_saved_quote_message_id(self, owner_id: int, alias: int) -> int | None:
         if row := await self.execute_fetchone(
             "SELECT message_id FROM saved_quote WHERE owner_id = ? AND alias = ?", (owner_id, alias)
         ):
@@ -246,7 +293,8 @@ class QuoteBotDatabaseConnection(
             IF NOT EXISTS highlight (
                 user_id INTEGER NOT NULL,
                 query TEXT NOT NULL,
-                PRIMARY KEY (user_id, query)
+                guild_id INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, query, guild_id)
             );
             CREATE TABLE
             IF NOT EXISTS blocked (
@@ -260,12 +308,20 @@ class QuoteBotDatabaseConnection(
                 DELETE FROM saved_quote
                 WHERE owner_id = old.guild_id;
             END;
+
+            CREATE TRIGGER
+            IF NOT EXISTS delete_guild_highlights
+                AFTER DELETE ON guild
+            BEGIN
+                DELETE FROM highlight
+                WHERE guild_id = old.guild_id;
+            END;
         """
         )
         await self.commit()
 
 
-def connect(database: Union[str, bytes, PathLike], iter_chunk_size: int = 64) -> QuoteBotDatabaseConnection:
+def connect(database: str | bytes | PathLike, iter_chunk_size: int = 64) -> QuoteBotDatabaseConnection:
     return QuoteBotDatabaseConnection(
         lambda: sqlite3.connect(
             database, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES, isolation_level=None
