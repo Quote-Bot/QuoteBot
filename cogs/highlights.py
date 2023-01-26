@@ -150,7 +150,7 @@ class Highlights(commands.Cog):
             await ctx.send(embed=embed)
         else:
             await ctx.send(
-                f":x: **You don't have any Highlights{' for server `{guild.name} ({guild.id})`' if server else ''}.**"
+                f":x: **You don't have any Highlights{f' for server `{server.name} ({server.id})`' if server else ''}.**"
             )
 
     def _hightlight_server_list_formatted(self, highlights: Iterable[tuple[str, int]], ctx: commands.Context) -> str:
