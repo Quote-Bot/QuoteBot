@@ -1,44 +1,40 @@
-<div align="center">
-  <a href="https://discord.gg/vkWyTGa"><img src="https://discordapp.com/api/guilds/741660208119545968/widget.png?style=shield" alt="Support Server" /></a>
-</div>
-
 # Quote Bot
 
-An easy way to quote messages with cross-server support!
+[![Support Server](https://discordapp.com/api/guilds/741660208119545968/widget.png?style=shield)](https://discord.gg/vkWyTGa)
+[![License](https://img.shields.io/github/license/Quote-Bot/QuoteBot)](https://github.com/Quote-Bot/QuoteBot/blob/master/LICENSE)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
----
+An easy way to quote Discord messages with cross-server support!
 
 ## Features
 
-- Message link & ID quoting
-- Deleted/edited message sniping
+- Quote messages by link or ID
+- Snipe deleted/edited messages
 - Message cloning
 - Saved personal/server quotes
 - Highlight messages containing specific words/patterns
 - Configurable settings for each server
 
-<br />
+## Self-hosting
 
-## Self Host
+### Local installation
 
-Quote is completely open-source and self-hostable!
+The bot requires [Python 3.11](https://www.python.org/downloads/) and the libraries specified in [Pipfile](Pipfile), which can be installed using [`pipenv`](https://pipenv.pypa.io/en/stable/install/#installing-pipenv):
 
-If you or someone you know want to add your own version of Quote to your/their guild, feel free to check out the self-hosting guides on our [website (https://quote-bot.tk)](https://quote-bot.tk)
+```sh
+pipenv install
+```
 
-<br />
+The following command will then start the bot:
 
-<div align="center">
-  <table>
-    <tr>
-      <td>
-        <a href="https://quote-bot.tk/selfhosting/windows">Windows Self-Hosting Guide</a>
-      </td>
-      <td>
-        <a href="https://quote-bot.tk/selfhosting/linux">Linux Self-Hosting Guide</a>
-      </td>
-      <td>
-        <a href="https://quote-bot.tk/selfhosting/faq">FAQ (Frequently Asked Questions)</a>
-      </td>
-    </tr>
-  </table>
-</div>
+```sh
+pipenv run bot
+```
+
+### Docker
+
+Alternatively, the bot can be deployed in a [Docker](https://www.docker.com/get-started) container:
+
+```sh
+docker-compose up
+```
