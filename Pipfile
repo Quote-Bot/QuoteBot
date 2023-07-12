@@ -4,18 +4,18 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"discord.py" = {ref = "903e2e64e9182b8d3330ef565af7bb46ff9f04da", git = "https://github.com/Rapptz/discord.py.git"}
+"discord.py" = "==2.3.1"
 aiohttp = ">=3.7.4"
-aiosqlite = "*"
-uvloop = {version = "*", markers = "sys_platform == 'linux' or sys_platform == 'darwin'"}
+aiosqlite = "==0.19.0"
+uvloop = {version = ">=0.17.0", markers = "sys_platform == 'linux' or sys_platform == 'darwin'"}
 
 [dev-packages]
-black = "*"
-isort = "*"
-pre-commit = "*"
+black = "==23.7.0"
+isort = "==5.12.0"
+pre-commit = "==3.3.3"
 
 [requires]
-python_version = "3.10"
+python_version = "3.11"
 
 [scripts]
 bot = "python bot.py"
