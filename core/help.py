@@ -47,8 +47,7 @@ class QuoteBotHelpCommand(commands.HelpCommand):
         embed.add_field(
             name="Links",
             value="[Support Server](https://discord.gg/vkWyTGa)\n"
-            f"[Add Me]({discord.utils.oauth_url(bot.user.id, permissions=self._PERMISSIONS)})"
-            "[Website](https://quote-bot.tk/)\n"
+            f"[Add Me]({discord.utils.oauth_url(bot.user.id, permissions=self._PERMISSIONS)})\n"
             "[GitHub](https://github.com/Quote-Bot/QuoteBot)",
         )
         embed.add_field(
