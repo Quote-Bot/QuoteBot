@@ -1,4 +1,4 @@
-FROM python:3.9.6-slim
+FROM python:3.11.4-slim
 
 RUN pip install pipenv
 RUN apt-get update && apt-get install -yq git
