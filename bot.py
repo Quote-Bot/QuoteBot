@@ -20,7 +20,7 @@ import json
 import os
 from sys import stderr
 from traceback import print_tb
-from typing import Awaitable, Callable, List, Iterable, NamedTuple, Optional, Set
+from typing import Awaitable, Callable, Iterable, List, NamedTuple, Optional, Set
 
 import discord
 from aiohttp import ClientSession
