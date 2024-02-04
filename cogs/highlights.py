@@ -70,9 +70,7 @@ class Highlights(commands.Cog):
                 seen_user_ids.add(user_id)
                 try:
                     await self.bot.quote_message(msg, member, member.send, str(member), "highlight")
-                except discord.Forbidden:
-                    await con.clear_user_highlights(user_id)
-                except discord.HTTPException:
+                except (discord.Forbidden, discord.HTTPException):
                     continue
         await con.commit()
 
