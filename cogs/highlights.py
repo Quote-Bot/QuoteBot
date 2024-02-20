@@ -61,9 +61,7 @@ class Highlights(commands.Cog):
     ) -> None:
         seen_user_ids = set()
         for user_id, query, guild_id in highlights:
-            if not self.bot.get_user(user_id):
-                await con.clear_user_highlights(user_id)
-            elif not (member := msg.guild.get_member(user_id)):
+            if not (member := msg.guild.get_member(user_id)):
                 continue
             elif guild_id != 0 and guild_id != msg.guild.id:
                 continue
